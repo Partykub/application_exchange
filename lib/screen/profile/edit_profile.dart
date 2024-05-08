@@ -168,12 +168,11 @@ class _EditProfileState extends State<EditProfile> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 ElevatedButton(
-                  onPressed: _updateUserName,
-                  child: Text('บันทึกชื่อผู้ใช้'),
-                ),
-                ElevatedButton(
-                  onPressed: _updateProfileImage,
-                  child: Text('บันทึกรูปโปรไฟล์'),
+                  onPressed: () {
+                    _updateUserName();
+                    _updateProfileImage();
+                  },
+                  child: Text('บันทึก'),
                 ),
               ],
             ),
