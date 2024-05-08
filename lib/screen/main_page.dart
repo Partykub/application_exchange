@@ -1,3 +1,4 @@
+import 'package:exchange/screen/profile/profile.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -13,16 +14,12 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: 'kunratcha45@gmail.com', password: 'Party2545');
+    // FirebaseAuth.instance.signInWithEmailAndPassword(
+    //     email: 'partynenei@gmail.com', password: 'Party2545');
     return MaterialApp(
       home: DefaultTabController(
         length: 5,
         child: Scaffold(
-          appBar: AppBar(
-            title: const Text("ยินดีต้อนรับ"),
-            backgroundColor: Colors.white,
-          ),
           body: TabBarView(
             children: [
               Container(
@@ -47,10 +44,10 @@ class _MainScreenState extends State<MainScreen> {
                 child: const Text("HI"),
               ),
               Container(
-                child: const Text("HI"),
+                child: Image.asset('lib/images/UserProfile.jpg'),
               ),
               Container(
-                child: const Text("HI"),
+                child: Profile(informationUserUID: auth.currentUser!.uid),
               ),
             ],
           ),

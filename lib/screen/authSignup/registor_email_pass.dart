@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:exchange/class/information.dart';
+import 'package:exchange/class/new_image_profile.dart';
 import 'package:exchange/class/validator_pass.dart';
 import 'package:exchange/screen/authLogin/login_main.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -227,6 +228,8 @@ class _RegistorEmailPassState extends State<RegistorEmailPass> {
                       "Name": informationUser.name,
                       "PhoneNumber": informationUser.phonenumber
                     });
+
+                    uploadImageToFirebase(context, auth.currentUser!.uid);
 
                     registerFormKey.currentState!.reset();
                     //คำสั่งปิดแป้นพิมพ์

@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:exchange/class/information.dart';
+import 'package:exchange/class/new_image_profile.dart';
 import 'package:exchange/screen/main_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -212,6 +213,9 @@ class _RegisterScreenState extends State<RegisterScreenGoogle> {
                                 "Name": informationUser.name,
                                 "PhoneNumber": informationUser.phonenumber
                               });
+
+                              uploadImageToFirebase(
+                                  context, widget.informationUserUID);
 
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
