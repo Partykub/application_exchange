@@ -22,6 +22,7 @@ class _LoginScreenState extends State<LoginScreen> {
   List<bool> emailWithPhone = [true, false];
   late Future<FirebaseApp> firebase;
   final auth = FirebaseAuth.instance;
+  bool isLoading = false;
 
   @override
   void initState() {
@@ -99,39 +100,50 @@ class _LoginScreenState extends State<LoginScreen> {
                     if (emailWithPhone[1] == true) ...[PhoneAuth()],
                     const SizedBox(height: 20),
                     TextButton.icon(
-                      onPressed: () async {
-                        var userCredential = await signInWithGoogle();
+                      onPressed: isLoading
+                          ? null
+                          : () async {
+                              var userCredential = await signInWithGoogle();
+                              // ignore: unnecessary_null_comparison
+                              if (userCredential != null &&
+                                  userCredential.user != null) {
+                                if (userCredential
+                                    .additionalUserInfo!.isNewUser) {
+                                  // ถ้าเป็นผู้ใช้ใหม่ เพิ่มข้อมูลและไปยังหน้าลงทะเบียน
+                                  informationUser.uid = auth.currentUser!.uid;
+                                  informationUser.email =
+                                      auth.currentUser!.email;
 
-                        // ignore: unnecessary_null_comparison
-                        if (userCredential != null &&
-                            userCredential.user != null) {
-                          if (userCredential.additionalUserInfo!.isNewUser) {
-                            // ถ้าเป็นผู้ใช้ใหม่ เพิ่มข้อมูลและไปยังหน้าลงทะเบียน
-                            informationUser.uid = auth.currentUser!.uid;
-                            informationUser.email = auth.currentUser!.email;
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => RegisterScreenGoogle(
-                                  informationUserUID: informationUser.uid,
-                                  isFromGoogleLogin:
-                                      true, // เพิ่มตัวแปรเพื่อบอกว่าเป็นการลงทะเบียนจาก Google
-                                ),
-                              ),
-                            );
-                          } else {
-                            // ถ้าเป็นผู้ใช้ทั่วไป ไปยังหน้า Main Page
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => MainScreen(),
-                              ),
-                            );
-                          }
-                        }
-                      },
-                      icon: Icon(Icons.g_mobiledata),
-                      label: Text('เข้าสู่ระบบด้วย Google'),
+                                  // ignore: use_build_context_synchronously
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          RegisterScreenGoogle(
+                                        informationUserUID: informationUser.uid,
+                                        isFromGoogleLogin:
+                                            true, // เพิ่มตัวแปรเพื่อบอกว่าเป็นการลงทะเบียนจาก Google
+                                      ),
+                                    ),
+                                  );
+                                } else {
+                                  // ถ้าเป็นผู้ใช้ทั่วไป ไปยังหน้า Main Page
+                                  // ignore: use_build_context_synchronously
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => const MainScreen(),
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                      icon: const Icon(Icons.g_mobiledata),
+                      label: isLoading
+                          ? const CircularProgressIndicator(
+                              color: Colors.white,
+                            )
+                          : const Text('เข้าสู่ระบบด้วย Google'),
                       style: ButtonStyle(
                         backgroundColor: MaterialStateProperty.all(Colors.red),
                         foregroundColor:
@@ -140,7 +152,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             MaterialStateProperty.all<RoundedRectangleBorder>(
                           RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(18.0),
-                            side: BorderSide(color: Colors.red),
+                            side: const BorderSide(color: Colors.red),
                           ),
                         ),
                       ),

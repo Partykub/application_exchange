@@ -1,9 +1,15 @@
+import 'package:exchange/screen/exchange/chat/chat_list.dart';
+import 'package:exchange/screen/exchange/exchange.dart';
+import 'package:exchange/screen/post_like/post_like.dart';
+import 'package:flutter/material.dart';
+import 'package:exchange/screen/post/post.dart';
 import 'package:exchange/screen/profile/profile.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/material.dart';
 
 class MainScreen extends StatefulWidget {
-  const MainScreen({super.key});
+  final int initialTabIndex;
+
+  const MainScreen({Key? key, this.initialTabIndex = 0}) : super(key: key);
 
   @override
   State<MainScreen> createState() => _MainScreenState();
@@ -14,44 +20,29 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // FirebaseAuth.instance.signInWithEmailAndPassword(
-    //     email: 'partynenei@gmail.com', password: 'Party2545');
     return MaterialApp(
       home: DefaultTabController(
+        initialIndex: widget.initialTabIndex,
         length: 5,
         child: Scaffold(
           body: TabBarView(
             children: [
+              Container(child: const Exchange()),
               Container(
-                child: Center(
-                  child: Column(
-                    children: [
-                      if (auth.currentUser!.phoneNumber != null) ...{
-                        Text(auth.currentUser!.uid),
-                        Text(auth.currentUser!.phoneNumber.toString())
-                      } else if (auth.currentUser!.email != null) ...{
-                        Text(auth.currentUser!.uid),
-                        Text(auth.currentUser!.email.toString())
-                      }
-                    ],
-                  ),
-                ),
+                child: const PostLike(),
               ),
               Container(
-                child: const Text("HI"),
+                child: const Post(),
               ),
               Container(
-                child: const Text("HI"),
-              ),
-              Container(
-                child: Image.asset('lib/images/UserProfile.jpg'),
+                child: const ChatList(),
               ),
               Container(
                 child: Profile(informationUserUID: auth.currentUser!.uid),
               ),
             ],
           ),
-          backgroundColor: Color(0xFFF7F7F7),
+          backgroundColor: const Color(0xFFF7F7F7),
           bottomNavigationBar: const SizedBox(
             height: 70, // ปรับความสูงของ TabBar ตามต้องการ
             child: ColoredBox(

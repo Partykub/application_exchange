@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:exchange/class/checkphonenumber_isnew.dart';
 import 'package:exchange/class/information.dart';
 import 'package:exchange/class/new_image_profile.dart';
 import 'package:exchange/class/validator_pass.dart';
@@ -16,6 +17,7 @@ class RegistorEmailPass extends StatefulWidget {
 
 class _RegistorEmailPassState extends State<RegistorEmailPass> {
   final registerFormKey = GlobalKey<FormState>();
+  final otpFormKey = GlobalKey<FormState>();
   InformationUser informationUser = InformationUser();
   late Future<FirebaseApp> firebase;
   String? eMessage;
@@ -23,9 +25,19 @@ class _RegistorEmailPassState extends State<RegistorEmailPass> {
   String? _verificationId;
   String? _message;
 
+  bool _obscurePassword = true;
+  bool isLoading = false;
+  bool isLoadingOTP = false;
+
   final auth = FirebaseAuth.instance;
-  CollectionReference _userCollection =
+  final CollectionReference _userCollection =
       FirebaseFirestore.instance.collection('informationUser');
+
+  void togglePasswordVisibility() {
+    setState(() {
+      _obscurePassword = !_obscurePassword;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -49,10 +61,13 @@ class _RegistorEmailPassState extends State<RegistorEmailPass> {
               informationUser.email = inputemail;
             },
             keyboardType: TextInputType.emailAddress,
-            decoration: const InputDecoration(
-              border: OutlineInputBorder(),
-              labelText: 'อีเมล',
-              hintText: 'อีเมล',
+            decoration: InputDecoration(
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              labelText: 'กรอกอีเมลของคุณ',
+              hintText: 'กรอกอีเมลของคุณ',
+              suffixIcon: const Icon(Icons.person),
             ),
           ),
 
@@ -66,12 +81,21 @@ class _RegistorEmailPassState extends State<RegistorEmailPass> {
             onSaved: (inputPass) {
               informationUser.passsword = inputPass;
             },
-            obscureText: true,
+            obscureText: _obscurePassword,
             keyboardType: TextInputType.text,
-            decoration: const InputDecoration(
-              border: OutlineInputBorder(),
-              labelText: 'รหัสผ่าน',
-              hintText: 'รหัสผ่าน',
+            decoration: InputDecoration(
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              labelText: 'กรอกรหัสของคุณ',
+              hintText: 'กรอกรหัสของคุณ',
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                  color: Colors.black,
+                ),
+                onPressed: togglePasswordVisibility,
+              ),
             ),
           ),
 
@@ -92,8 +116,10 @@ class _RegistorEmailPassState extends State<RegistorEmailPass> {
               informationUser.name = inputname;
             },
             keyboardType: TextInputType.text,
-            decoration: const InputDecoration(
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               labelText: 'กรอกชื่อของคุณ',
               hintText: 'กรอกชื่อของคุณ',
             ),
@@ -118,52 +144,93 @@ class _RegistorEmailPassState extends State<RegistorEmailPass> {
             },
             keyboardType: TextInputType.phone,
             decoration: InputDecoration(
-              border: OutlineInputBorder(),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               labelText: 'กรอกเบอร์โทรศัพท์',
               hintText: 'กรอกเบอร์โทรศัพท์',
               suffixIcon: GestureDetector(
-                onTap: () {
-                  if (registerFormKey.currentState!.validate()) {
-                    registerFormKey.currentState!.save();
-                    final phoneNumber =
-                        "+66${informationUser.phonenumber!.trim()}";
-                    FirebaseAuth.instance.verifyPhoneNumber(
-                      phoneNumber: phoneNumber,
-                      verificationCompleted:
-                          (PhoneAuthCredential credential) async {
-                        await FirebaseAuth.instance
-                            .signInWithCredential(credential);
+                onTap: isLoadingOTP
+                    ? null
+                    : () async {
+                        if (registerFormKey.currentState!.validate()) {
+                          registerFormKey.currentState!.save();
+                          bool isNewPhoneNumber = await checkPhoneNumberIsNew(
+                              informationUser.phonenumber.toString());
+                          final phoneNumber =
+                              "+66${informationUser.phonenumber!.trim()}";
+                          if (isNewPhoneNumber) {
+                            try {
+                              print("เบอร์ที่ลงทะเบียนเป็นเบอร์ใหม่");
+                              FirebaseAuth.instance.verifyPhoneNumber(
+                                phoneNumber: phoneNumber,
+                                verificationCompleted:
+                                    (PhoneAuthCredential credential) async {
+                                  await FirebaseAuth.instance
+                                      .signInWithCredential(credential);
+                                },
+                                verificationFailed: (FirebaseException e) {
+                                  print('Verifivation Failed: ${e.message}');
+                                },
+                                codeSent:
+                                    (String verificationId, int? resendToken) {
+                                  _verificationId = verificationId;
+                                },
+                                codeAutoRetrievalTimeout:
+                                    (String verificationId) {},
+                              );
+                            } catch (e) {
+                              print("Error ขอ OTP: $e");
+                            } finally {
+                              setState(() {
+                                isLoadingOTP = false;
+                              });
+                            }
+                          } else {
+                            if (mounted) {
+                              Navigator.pushReplacement(context,
+                                  MaterialPageRoute(
+                                builder: (context) {
+                                  return const LoginScreen();
+                                },
+                              ));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content:
+                                      Text('เบอร์โทรศัพท์นี้ลงทะเบียนแล้ว'),
+                                  duration: Duration(seconds: 2),
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            }
+                          }
+                        }
                       },
-                      verificationFailed: (FirebaseException e) {
-                        print('Verifivation Failed: ${e.message}');
-                      },
-                      codeSent: (String verificationId, int? resendToken) {
-                        _verificationId = verificationId;
-                      },
-                      codeAutoRetrievalTimeout: (String verificationId) {},
-                    );
-                  }
-                },
-                child: Padding(
-                  padding: EdgeInsets.only(right: 8),
-                  child: Container(
-                    width: 80, // กำหนดความกว้างของปุ่ม
-                    height: 5, // กำหนดความสูงของปุ่ม
-                    decoration: BoxDecoration(
-                      color: Colors.black54, // กำหนดสีพื้นหลังเป็นสีดำ
-                      borderRadius:
-                          BorderRadius.circular(10), // กำหนดเส้นรอบมุมเป็นวงรี
-                    ),
-                    child: Center(
-                      child: Text(
-                        'ขอ OTP',
-                        style: TextStyle(
-                          color: Colors.white, // กำหนดสีตัวหนังสือเป็นสีขาว
+                child: isLoadingOTP
+                    ? const CircularProgressIndicator(
+                        color: Colors.white,
+                      )
+                    : Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: Container(
+                          width: 80, // กำหนดความกว้างของปุ่ม
+                          height: 5, // กำหนดความสูงของปุ่ม
+                          decoration: BoxDecoration(
+                            color: Colors.black54, // กำหนดสีพื้นหลังเป็นสีดำ
+                            borderRadius: BorderRadius.circular(
+                                10), // กำหนดเส้นรอบมุมเป็นวงรี
+                          ),
+                          child: const Center(
+                            child: Text(
+                              'ขอ OTP',
+                              style: TextStyle(
+                                color:
+                                    Colors.white, // กำหนดสีตัวหนังสือเป็นสีขาว
+                              ),
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ),
-                ),
               ),
             ),
           ),
@@ -174,7 +241,9 @@ class _RegistorEmailPassState extends State<RegistorEmailPass> {
             keyboardType: TextInputType.number,
             onChanged: (value) => _smsCode = value,
             decoration: InputDecoration(
-              border: OutlineInputBorder(),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               labelText: 'กรอก OTP',
               hintText: 'กรอก OTP ที่ได้รับ',
             ),
@@ -186,7 +255,7 @@ class _RegistorEmailPassState extends State<RegistorEmailPass> {
           if (_message != null)
             Text(
               _message!,
-              style: TextStyle(color: Colors.red),
+              style: const TextStyle(color: Colors.red),
             ),
           const SizedBox(
             height: 25,
@@ -201,64 +270,111 @@ class _RegistorEmailPassState extends State<RegistorEmailPass> {
               ),
               fixedSize: MaterialStateProperty.all(const Size(180, 30)),
             ),
-            child: const Text(
-              "ยืนยัน",
-              style: TextStyle(fontSize: 18, color: Colors.white),
-            ),
-            onPressed: () async {
-              if (registerFormKey.currentState!.validate()) {
-                registerFormKey.currentState!.save();
-                print(
-                    "${informationUser.email} ${informationUser.passsword} ${informationUser.phonenumber} ${informationUser.name}");
-                try {
-                  await FirebaseAuth.instance
-                      .createUserWithEmailAndPassword(
-                          email: informationUser.email!,
-                          password: informationUser.passsword!)
-                      .then((value) async {
-                    FirebaseAuth.instance.signInWithEmailAndPassword(
-                        email: informationUser.email!,
-                        password: informationUser.passsword!);
+            onPressed: isLoading
+                ? null
+                : () async {
+                    if (registerFormKey.currentState!.validate() &&
+                        _smsCode != null) {
+                      registerFormKey.currentState!.save();
+                      bool isNewPhoneNumber = await checkPhoneNumberIsNew(
+                          informationUser.phonenumber.toString());
+                      print(
+                          "${informationUser.email} ${informationUser.passsword} ${informationUser.phonenumber} ${informationUser.name}");
+                      if (isNewPhoneNumber) {
+                        try {
+                          setState(() {
+                            isLoading = true;
+                          });
+                          await FirebaseAuth.instance
+                              .createUserWithEmailAndPassword(
+                                  email: informationUser.email!,
+                                  password: informationUser.passsword!)
+                              .then((value) async {
+                            FirebaseAuth.instance.signInWithEmailAndPassword(
+                                email: informationUser.email!,
+                                password: informationUser.passsword!);
 
-                    PhoneAuthProvider.credential(
-                        verificationId: _verificationId!, smsCode: _smsCode!);
+                            PhoneAuthProvider.credential(
+                                verificationId: _verificationId!,
+                                smsCode: _smsCode!);
 
-                    await _userCollection.doc(auth.currentUser!.uid).set({
-                      "Email": auth.currentUser!.email,
-                      "Name": informationUser.name,
-                      "PhoneNumber": informationUser.phonenumber
-                    });
+                            await _userCollection
+                                .doc(auth.currentUser!.uid)
+                                .set({
+                              "Email": auth.currentUser!.email,
+                              "Name": informationUser.name,
+                              "PhoneNumber": informationUser.phonenumber
+                            });
+                            if (mounted) {
+                              uploadImageToFirebase(
+                                  context, auth.currentUser!.uid);
 
-                    uploadImageToFirebase(context, auth.currentUser!.uid);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('ลงทะเบียนสำเร็จ'),
+                                  duration: Duration(seconds: 2),
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
 
-                    registerFormKey.currentState!.reset();
-                    //คำสั่งปิดแป้นพิมพ์
-                    FocusManager.instance.primaryFocus?.unfocus();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('ลงทะเบียนสำเร็จ'),
-                        duration: const Duration(seconds: 2),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                    Navigator.pushReplacement(context, MaterialPageRoute(
-                      builder: (context) {
-                        return const LoginScreen();
-                      },
-                    ));
-                  });
-                } on FirebaseAuthException catch (error) {
-                  if (error.message! ==
-                      "The email address is already in use by another account.") {
-                    eMessage = "ที่อยู่อีเมลนี้มีการใช้งานแล้วโดยบัญชีอื่น";
-                  }
-                  // print(error.message);
+                              Navigator.pushReplacement(context,
+                                  MaterialPageRoute(
+                                builder: (context) {
+                                  return const LoginScreen();
+                                },
+                              ));
+                            }
+                            registerFormKey.currentState!.reset();
+                            //คำสั่งปิดแป้นพิมพ์
+                            FocusManager.instance.primaryFocus?.unfocus();
+                          });
+                        } on FirebaseAuthException catch (error) {
+                          if (error.message! ==
+                              "The email address is already in use by another account.") {
+                            eMessage =
+                                "ที่อยู่อีเมลนี้มีการใช้งานแล้วโดยบัญชีอื่น";
+                          }
+                          print(error.message);
+                        } finally {
+                          setState(() {
+                            isLoading = false;
+                          });
+                        }
+                      } else {
+                        if (mounted) {
+                          Navigator.pushReplacement(context, MaterialPageRoute(
+                            builder: (context) {
+                              return const LoginScreen();
+                            },
+                          ));
 
-                  print(error.message);
-                  // ignore: use_build_context_synchronously
-                }
-              }
-            },
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('เบอร์โทรศัพท์นี้ลงทะเบียนแล้ว'),
+                              duration: Duration(seconds: 2),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                      }
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('กรุณากรอก OTP'),
+                          duration: Duration(seconds: 2),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  },
+            child: isLoading
+                ? const CircularProgressIndicator(
+                    color: Colors.white,
+                  )
+                : const Text(
+                    "ยืนยัน",
+                    style: TextStyle(fontSize: 18, color: Colors.white),
+                  ),
           )
         ],
       ),

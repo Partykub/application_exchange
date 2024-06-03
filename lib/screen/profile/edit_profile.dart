@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:exchange/screen/profile/profile.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -13,29 +14,23 @@ class EditProfile extends StatefulWidget {
       : super(key: key);
 
   @override
+  // ignore: library_private_types_in_public_api
   _EditProfileState createState() => _EditProfileState();
 }
 
 class _EditProfileState extends State<EditProfile> {
-  TextEditingController _nameController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  final _nameEditingController = TextEditingController();
+
+  bool isLoading = false;
   Uint8List? _image;
 
   @override
-  void initState() {
-    super.initState();
-    _loadUserProfile(); // เรียกใช้ฟังก์ชันเพื่อโหลดข้อมูลโปรไฟล์
+  void dispose() {
+    _nameEditingController.dispose();
+    super.dispose();
   }
 
-  // ฟังก์ชันเพื่อโหลดข้อมูลโปรไฟล์
-  void _loadUserProfile() {
-    // ใส่โค้ดที่นี่เพื่อโหลดข้อมูลโปรไฟล์ เช่น ชื่อผู้ใช้ และ URL รูปโปรไฟล์
-    // ในกรณีนี้คุณอาจต้องดึงข้อมูลจาก Firestore หรือจากที่เก็บข้อมูลอื่น ๆ
-    // ตัวอย่างเช่น:
-    _nameController.text = 'ชื่อผู้ใช้';
-    // _imageUrl = 'URL รูปโปรไฟล์'; // กำหนด URL รูปโปรไฟล์เริ่มต้น
-  }
-
-  // ฟังก์ชั่นสำหรับเลือกรูปภาพจากแกลเลอรี
   Future<void> _pickImage() async {
     final picker = ImagePicker();
     final pickedImage = await picker.pickImage(source: ImageSource.gallery);
@@ -46,7 +41,6 @@ class _EditProfileState extends State<EditProfile> {
     }
   }
 
-  // ฟังก์ชั่นสำหรับอัปเดตรูปโปรไฟล์
   Future<void> _updateProfileImage() async {
     try {
       if (_image != null) {
@@ -55,54 +49,70 @@ class _EditProfileState extends State<EditProfile> {
             .ref()
             .child('User Profile/${widget.informationUserUID}.jpg');
 
-        // อัปโหลดรูปภาพ
         await ref.putData(_image!);
 
-        // รับ URL ของรูปภาพหลังจากอัปโหลด
         final String imageUrl = await ref.getDownloadURL();
 
-        // อัปเดต URL ใน Firestore
         await _saveImagePathToFirestore(imageUrl, widget.informationUserUID);
 
+        // ignore: avoid_print
         print('Image updated successfully!');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Image updated successfully'),
-            duration: Duration(seconds: 2),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        if (mounted) {
+          // ignore: use_build_context_synchronously
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Image updated successfully'),
+              duration: Duration(seconds: 2),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          // ignore: use_build_context_synchronously
+          Navigator.pushReplacement(context,
+              MaterialPageRoute(builder: (context) {
+            return Profile(informationUserUID: widget.informationUserUID);
+          }));
+        }
       } else {
+        // ignore: avoid_print
         print('No image selected.');
       }
     } catch (error) {
+      // ignore: avoid_print
       print('Error updating image: $error');
     }
   }
 
-  // ฟังก์ชั่นสำหรับอัปเดตชื่อผู้ใช้
   Future<void> _updateUserName() async {
     try {
-      String newName = _nameController.text;
+      String newName = _nameEditingController.text;
       FirebaseFirestore firestore = FirebaseFirestore.instance;
       DocumentReference userRef = firestore
           .collection('informationUser')
           .doc(widget.informationUserUID);
       await userRef.update({'Name': newName});
+      // ignore: avoid_print
       print("Username updated successfully!");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Username updated successfully'),
-          duration: Duration(seconds: 2),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      if (mounted) {
+        // ignore: use_build_context_synchronously
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Username updated successfully'),
+            duration: Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        // ignore: use_build_context_synchronously
+        Navigator.pushReplacement(context,
+            MaterialPageRoute(builder: (context) {
+          return Profile(informationUserUID: widget.informationUserUID);
+        }));
+      }
     } catch (error) {
+      // ignore: avoid_print
       print("Error updating username: $error");
     }
   }
 
-  // ฟังก์ชั่นสำหรับอัปเดต URL ใน Firestore
   Future<void> _saveImagePathToFirestore(
       String imageUrl, String informationUserUID) async {
     try {
@@ -110,8 +120,10 @@ class _EditProfileState extends State<EditProfile> {
       DocumentReference userRef =
           firestore.collection('informationUser').doc(informationUserUID);
       await userRef.update({'profileImageUrl': imageUrl});
+      // ignore: avoid_print
       print("Image URL saved to Firestore successfully!");
     } catch (error) {
+      // ignore: avoid_print
       print("Error saving image URL: $error");
     }
   }
@@ -120,6 +132,7 @@ class _EditProfileState extends State<EditProfile> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: Colors.white,
         title: const Text("แก้ไขโปรไฟล์"),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -128,55 +141,145 @@ class _EditProfileState extends State<EditProfile> {
           },
         ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'แก้ไขชื่อผู้ใช้',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            TextFormField(
-              controller: _nameController,
-              decoration: InputDecoration(
-                hintText: 'ชื่อผู้ใช้',
-              ),
-            ),
-            SizedBox(height: 20),
-            Text(
-              'แก้ไขรูปโปรไฟล์',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            InkWell(
-              onTap: _pickImage,
-              child: CircleAvatar(
-                radius: 50,
-                backgroundColor: Colors.grey[200],
-                backgroundImage: _image != null ? MemoryImage(_image!) : null,
-                child: _image == null
-                    ? Icon(
-                        Icons.add_a_photo,
-                        size: 30,
-                        color: Colors.grey[600],
-                      )
-                    : null,
-              ),
-            ),
-            SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                ElevatedButton(
-                  onPressed: () {
-                    _updateUserName();
-                    _updateProfileImage();
-                  },
-                  child: Text('บันทึก'),
+      body: SingleChildScrollView(
+        child: Container(
+          color: Colors.grey[100],
+          child: Column(
+            children: [
+              Container(
+                color: Colors.white,
+                child: Center(
+                  child: InkWell(
+                    onTap: _pickImage,
+                    child: CircleAvatar(
+                      radius: 100,
+                      backgroundColor: Colors.grey[200],
+                      backgroundImage:
+                          _image != null ? MemoryImage(_image!) : null,
+                      child: _image == null
+                          ? Icon(
+                              Icons.add_a_photo,
+                              size: 30,
+                              color: Colors.grey[600],
+                            )
+                          : null,
+                    ),
+                  ),
                 ),
-              ],
-            ),
-          ],
+              ),
+              const SizedBox(height: 25),
+              Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Container(
+                      color: Colors.white,
+                      child: Column(
+                        children: [
+                          const SizedBox(
+                            height: 15,
+                          ),
+                          const Text(
+                            'แก้ไขชื่อผู้ใช้',
+                            style: TextStyle(fontSize: 18),
+                          ),
+                          const SizedBox(height: 20),
+                          Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: TextFormField(
+                              controller: _nameEditingController,
+                              validator: (inputname) {
+                                if (inputname!.isEmpty) {
+                                  return "กรุณากรอกชื่อผู้ใช้";
+                                } else if (!RegExp(r'^[a-zA-Z0-9]{3,10}$')
+                                    .hasMatch(inputname)) {
+                                  return "ต้องมีตัวอักษร 3-10 ตัว";
+                                }
+                                return null;
+                              },
+                              decoration: InputDecoration(
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                labelText: 'ชื่อผู้ใช้',
+                                hintText: 'ชื่อผู้ใช้',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 80),
+                    ElevatedButton(
+                      style: ButtonStyle(
+                        backgroundColor:
+                            MaterialStateProperty.all(Colors.black54),
+                        shape:
+                            MaterialStateProperty.all<RoundedRectangleBorder>(
+                          RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        fixedSize:
+                            MaterialStateProperty.all(const Size(180, 30)),
+                      ),
+                      onPressed: isLoading
+                          ? null
+                          : () async {
+                              if (_nameEditingController.text.isNotEmpty &&
+                                  _formKey.currentState!.validate()) {
+                                try {
+                                  setState(() {
+                                    isLoading = true;
+                                  });
+                                  await _updateUserName();
+                                  await _updateProfileImage();
+                                } catch (error) {
+                                  print("Error: $error");
+                                } finally {
+                                  if (mounted) {
+                                    setState(() {
+                                      isLoading = false;
+                                    });
+                                  }
+                                }
+                              } else if (_nameEditingController.text.isEmpty) {
+                                try {
+                                  setState(() {
+                                    isLoading = true;
+                                  });
+                                  await _updateProfileImage();
+                                } catch (error) {
+                                  print("Error: $error");
+                                } finally {
+                                  if (mounted) {
+                                    setState(() {
+                                      isLoading = false;
+                                    });
+                                  }
+                                }
+                              }
+                            },
+                      child: isLoading
+                          ? SizedBox(
+                              width: MediaQuery.of(context).size.width / 20,
+                              height: MediaQuery.of(context).size.height / 40,
+                              child: const CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2.5,
+                              ),
+                            )
+                          : const Text('บันทึก',
+                              style:
+                                  TextStyle(fontSize: 18, color: Colors.white)),
+                    ),
+                    const SizedBox(height: 130),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

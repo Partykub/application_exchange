@@ -1,4 +1,5 @@
 import 'package:exchange/class/information.dart';
+import 'package:exchange/screen/authSignup/main_registor.dart';
 import 'package:exchange/screen/main_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -140,15 +141,21 @@ class _EmailAuthState extends State<EmailAuth> {
                     eMessage =
                         'ข้อมูลประจำตัวที่ให้มามีรูปแบบไม่ถูกต้องหรือหมดอายุแล้ว';
                   }
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(eMessage),
-                      duration: Duration(seconds: 2),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(eMessage),
+                        duration: const Duration(seconds: 2),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
 
-                  // print(error.message);
+                    Navigator.pushReplacement(context, MaterialPageRoute(
+                      builder: (context) {
+                        return const RegistorScreen();
+                      },
+                    ));
+                  }
                 }
               }
             },

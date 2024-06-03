@@ -1,10 +1,11 @@
+import 'dart:io';
+
 import 'package:image_picker/image_picker.dart';
 
-pickImage(ImageSource source) async {
-  final ImagePicker _imagePicker = ImagePicker();
-  XFile? _file = await _imagePicker.pickImage(source: source);
-  if (_file != null) {
-    return await _file.readAsBytes();
+Future<dynamic> pickImage() async {
+  final picker = ImagePicker();
+  final pickedImage = await picker.pickImage(source: ImageSource.gallery);
+  if (pickedImage != null) {
+    return File(pickedImage.path).readAsBytesSync();
   }
-  print('No Images Selectrd');
 }

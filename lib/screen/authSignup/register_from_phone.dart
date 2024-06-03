@@ -24,7 +24,7 @@ class _RegisterScreenState extends State<RegisterScreenPhone> {
   late Future<FirebaseApp> firebase;
 
   final auth = FirebaseAuth.instance;
-  CollectionReference _userCollection =
+  final CollectionReference _userCollection =
       FirebaseFirestore.instance.collection('informationUser');
 
   @override
@@ -75,8 +75,9 @@ class _RegisterScreenState extends State<RegisterScreenPhone> {
                           informationUser.name = inputname;
                         },
                         keyboardType: TextInputType.text,
-                        decoration: const InputDecoration(
-                          border: OutlineInputBorder(),
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12)),
                           labelText: 'กรอกชื่อของคุณ',
                           hintText: 'กรอกชื่อของคุณ',
                         ),
@@ -101,8 +102,9 @@ class _RegisterScreenState extends State<RegisterScreenPhone> {
                           informationUser.email = inputemail;
                         },
                         keyboardType: TextInputType.text,
-                        decoration: const InputDecoration(
-                          border: OutlineInputBorder(),
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12)),
                           labelText: 'กรอกอีเมลของคุณ',
                           hintText: 'กรอกอีเมลของคุณ',
                         ),
@@ -140,22 +142,24 @@ class _RegisterScreenState extends State<RegisterScreenPhone> {
                                 "PhoneNumber": widget.InformationUserPhone
                               });
 
-                              uploadImageToFirebase(
-                                  context, widget.informationUserUID);
+                              if (mounted) {
+                                uploadImageToFirebase(
+                                    context, widget.informationUserUID);
 
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('ลงทะเบียนสำเร็จ'),
-                                  duration: const Duration(seconds: 2),
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
-                              Navigator.pushReplacement(context,
-                                  MaterialPageRoute(
-                                builder: (context) {
-                                  return const MainScreen();
-                                },
-                              ));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('ลงทะเบียนสำเร็จ'),
+                                    duration: Duration(seconds: 2),
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                                Navigator.pushReplacement(context,
+                                    MaterialPageRoute(
+                                  builder: (context) {
+                                    return const MainScreen();
+                                  },
+                                ));
+                              }
                             } catch (error) {
                               print('Error: $error');
                             }

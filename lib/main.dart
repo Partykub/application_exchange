@@ -1,14 +1,14 @@
 import 'package:exchange/firebase_options.dart';
-import 'package:exchange/screen/authLogin/login_main.dart';
+import 'package:exchange/screen/guest/guest_exchange.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+// import 'package:permission_handler/permission_handler.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
-    options: DefaultFirebaseOptions
-        .currentPlatform, // ใช้ DefaultFirebaseOptions.currentPlatform
+    options: DefaultFirebaseOptions.currentPlatform,
   );
 
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
@@ -20,9 +20,6 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // return MaterialApp(home: RegisterScreenGoogle());
-    return MaterialApp(
-      home: LoginScreen(),
-    );
+    return const MaterialApp(home: GuestExchange());
   }
 }

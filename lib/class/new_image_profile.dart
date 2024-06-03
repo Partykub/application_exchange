@@ -49,8 +49,7 @@ Future<void> _saveImagePathToFirestore(
     FirebaseFirestore firestore = FirebaseFirestore.instance;
     DocumentReference userRef =
         firestore.collection('informationUser').doc(informationUserUID);
-    await userRef.update(
-        {'profileImageUrl': imageUrl}); // อัปเดต URL ของรูปภาพใน Firestore
+    await userRef.update({'profileImageUrl': imageUrl});
     print("Image URL saved to Firestore successfully!");
   } catch (error) {
     print("Error saving image URL: $error");

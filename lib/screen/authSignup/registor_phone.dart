@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:exchange/class/checkphonenumber_isnew.dart';
+import 'package:exchange/screen/authLogin/login_main.dart';
 import 'package:exchange/screen/authSignup/register_from_phone.dart';
-import 'package:exchange/screen/main_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -14,6 +15,7 @@ class RegistorPhone extends StatefulWidget {
 class _RegistorPhoneState extends State<RegistorPhone> {
   TextEditingController phoneController = TextEditingController();
   final loginPhoneFormKey = GlobalKey<FormState>();
+  bool isLoading = false;
 
   @override
   Widget build(BuildContext context) {
@@ -57,37 +59,80 @@ class _RegistorPhoneState extends State<RegistorPhone> {
               ),
               fixedSize: MaterialStateProperty.all(const Size(180, 30)),
             ),
-            onPressed: () async {
-              if (loginPhoneFormKey.currentState!.validate()) {
-                print("Phone Controller : ${phoneController.text}");
-                final phoneNumber = "+66${phoneController.text.trim()}";
-                await FirebaseAuth.instance.verifyPhoneNumber(
-                  phoneNumber: phoneNumber,
-                  verificationCompleted:
-                      (PhoneAuthCredential credential) async {
-                    await FirebaseAuth.instance
-                        .signInWithCredential(credential);
+            onPressed: isLoading
+                ? null
+                : () async {
+                    if (loginPhoneFormKey.currentState!.validate()) {
+                      setState(() {
+                        isLoading = true;
+                      });
+                      print("Phone Controller : ${phoneController.text}");
+                      final phoneNumber = "+66${phoneController.text.trim()}";
+                      bool isNewPhoneNumber =
+                          await checkPhoneNumberIsNew(phoneController.text);
+                      print(
+                          "${phoneController.text}เป็นเบอร์ใหม่ $isNewPhoneNumber");
+                      print(isNewPhoneNumber);
+                      try {
+                        if (isNewPhoneNumber) {
+                          await FirebaseAuth.instance.verifyPhoneNumber(
+                            phoneNumber: phoneNumber,
+                            verificationCompleted:
+                                (PhoneAuthCredential credential) async {
+                              await FirebaseAuth.instance
+                                  .signInWithCredential(credential);
+                            },
+                            verificationFailed: (FirebaseAuthException e) {
+                              print('Verification Failed: ${e.message}');
+                            },
+                            codeSent:
+                                (String verificationId, int? resendToken) {
+                              // ส่งผู้ใช้ไปหน้ากรอก OTP
+                              Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (context) => OTPScreen(
+                                          verificationId: verificationId,
+                                          phoneController:
+                                              phoneController.text)));
+                            },
+                            codeAutoRetrievalTimeout:
+                                (String verificationId) {},
+                          );
+                        } else {
+                          print("มีเบอร์เหมือนกันอยู่ใน Field");
+                          // ignore: use_build_context_synchronously
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('เบอร์โทรศัพท์ได้ลงทะเบียนแล้ว'),
+                              duration: Duration(seconds: 2),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                          // ignore: use_build_context_synchronously
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => const LoginScreen()),
+                          );
+                        }
+                      } catch (e) {
+                        print("error check phonenumber: $e");
+                      } finally {
+                        setState(() {
+                          isLoading = false;
+                        });
+                      }
+                    }
                   },
-                  verificationFailed: (FirebaseAuthException e) {
-                    print('Verification Failed: ${e.message}');
-                  },
-                  codeSent: (String verificationId, int? resendToken) {
-                    // ส่งผู้ใช้ไปหน้ากรอก OTP
-                    Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => OTPScreen(
-                                verificationId: verificationId,
-                                phoneController: phoneController.text)));
-                  },
-                  codeAutoRetrievalTimeout: (String verificationId) {},
-                );
-              }
-            },
-            child: const Text(
-              "ถัดไป",
-              style: TextStyle(fontSize: 18, color: Colors.white),
-            ),
+            child: isLoading
+                ? const CircularProgressIndicator(
+                    color: Colors.white,
+                  )
+                : const Text(
+                    "ถัดไป",
+                    style: TextStyle(fontSize: 18, color: Colors.white),
+                  ),
           ),
         ],
       ),
@@ -108,6 +153,7 @@ class OTPScreen extends StatefulWidget {
 class _OTPScreenState extends State<OTPScreen> {
   TextEditingController otpController = TextEditingController();
   FirebaseAuth auth = FirebaseAuth.instance;
+  bool isLoading = false;
 
   @override
   Widget build(BuildContext context) {
@@ -146,81 +192,42 @@ class _OTPScreenState extends State<OTPScreen> {
               ),
               fixedSize: MaterialStateProperty.all(const Size(180, 30)),
             ),
-            onPressed: () async {
-              try {
-                PhoneAuthCredential credential = PhoneAuthProvider.credential(
-                    verificationId: widget.verificationId,
-                    smsCode: otpController.text);
+            onPressed: isLoading
+                ? null
+                : () async {
+                    try {
+                      PhoneAuthCredential credential =
+                          PhoneAuthProvider.credential(
+                              verificationId: widget.verificationId,
+                              smsCode: otpController.text);
 
-                await auth.signInWithCredential(credential);
+                      await auth.signInWithCredential(credential);
 
-                // Check if the phone number is new
-                bool isNewPhoneNumber =
-                    await checkPhoneNumberIsNew(widget.phoneController);
-
-                DocumentSnapshot userData =
-                    await fetchUserData(auth.currentUser!.uid);
-
-                if (isNewPhoneNumber) {
-                  //ถ้าไม่มีเบอร์อยู่เหมือนกันอยู่ใน field
-                  // Phone number is new: Redirect to register screen
-                  print("uid ของ phone : ${auth.currentUser!.uid}");
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => RegisterScreenPhone(
-                            informationUserUID: auth.currentUser!.uid,
-                            InformationUserPhone: widget.phoneController)),
-                  );
-                } else {
-                  //ถ้ามีเบอร์เหมือนกันอยู่ใน field แต่ ไม่มี field name
-                  if (!userData.exists ||
-                      (userData.data() as Map<String, dynamic>?) == null ||
-                      !(userData.data() as Map<String, dynamic>)
-                          .containsKey('Name')) {
-                    print('มีเบอร์เหมือนกันอยู่ใน field แต่ ไม่มี field name');
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => RegisterScreenPhone(
-                              informationUserUID: auth.currentUser!.uid,
-                              InformationUserPhone: widget.phoneController)),
-                    );
-                  } else {
-                    print('มีเบอร์เหมือนกันอยู่ในfield แล้วก็มี field name');
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(builder: (context) => MainScreen()),
-                    );
-                  }
-                }
-              } catch (ex) {
-                print('Error signing in with phone auth credential: $ex');
-              }
-            },
-            child: const Text(
-              "สมัครสมาชิก",
-              style: TextStyle(fontSize: 18, color: Colors.white),
-            ),
+                      print("uid ของ phone : ${auth.currentUser!.uid}");
+                      // ignore: use_build_context_synchronously
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => RegisterScreenPhone(
+                                informationUserUID: auth.currentUser!.uid,
+                                InformationUserPhone: widget.phoneController)),
+                      );
+                    } catch (ex) {
+                      print('Error signing in with phone auth credential: $ex');
+                    }
+                  },
+            child: isLoading
+                ? const CircularProgressIndicator(
+                    backgroundColor: Colors.white,
+                  )
+                : const Text(
+                    "สมัครสมาชิก",
+                    style: TextStyle(fontSize: 18, color: Colors.white),
+                  ),
           )
         ],
       ),
     );
-  }
-}
-
-Future<bool> checkPhoneNumberIsNew(String phoneNumber) async {
-  try {
-    QuerySnapshot<Map<String, dynamic>> querySnapshot = await FirebaseFirestore
-        .instance
-        .collection('informationUser')
-        .where('PhoneNumber', isEqualTo: phoneNumber)
-        .get();
-
-    return querySnapshot.docs.isEmpty;
-  } catch (e) {
-    print('Error checking phone number: $e');
-    return false;
   }
 }
 
