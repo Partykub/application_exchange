@@ -54,14 +54,14 @@ class _PostLikeState extends State<PostLike> {
                       children: [
                         const Icon(
                           Icons.camera_alt_outlined,
-                          size: 50,
+                          size: 40,
                         ),
                         SizedBox(
                           height: MediaQuery.of(context).size.height / 130,
                         ),
                         const Text(
                           "ยังไม่มีโพสต์ที่ถูกไลค์",
-                          style: TextStyle(fontSize: 20),
+                          style: TextStyle(fontSize: 18),
                         ),
                       ],
                     ),
@@ -111,7 +111,9 @@ class _PostLikeState extends State<PostLike> {
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(
-                      child: CircularProgressIndicator(),
+                      child: CircularProgressIndicator(
+                        color: Colors.black,
+                      ),
                     );
                   }
 

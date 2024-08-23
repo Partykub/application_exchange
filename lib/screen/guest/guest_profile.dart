@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:exchange/class/pull_image.dart';
+import 'package:exchange/screen/guest/guest_history_profile.dart';
 import 'package:exchange/screen/guest/guest_post_profile.dart';
 import 'package:flutter/material.dart';
 
@@ -13,6 +14,28 @@ class GuestProfile extends StatefulWidget {
 
 class _GuestProfileState extends State<GuestProfile> {
   List<bool> historyWithPost = [true, false];
+
+  int calculateStars(int exchangeSuccess, int numberOfPosts) {
+    if (numberOfPosts == 0) return 0;
+    double rate = (exchangeSuccess / numberOfPosts) * 100;
+    if (rate >= 100) return 5;
+    if (rate >= 80) return 4;
+    if (rate >= 60) return 3;
+    if (rate >= 40) return 2;
+    if (rate >= 20) return 1;
+    return 0;
+  }
+
+  List<Widget> buildStars(int stars) {
+    List<Widget> starWidgets = [];
+    for (int i = 0; i < stars; i++) {
+      starWidgets.add(const Icon(Icons.star, color: Colors.yellow));
+    }
+    for (int i = stars; i < 5; i++) {
+      starWidgets.add(const Icon(Icons.star_border, color: Colors.grey));
+    }
+    return starWidgets;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -50,27 +73,36 @@ class _GuestProfileState extends State<GuestProfile> {
                         if (snapshot.hasData) {
                           final imageUrl =
                               snapshot.data!['profileImageUrl'] as String;
+                          final exchangeSuccess =
+                              snapshot.data!['exchangeSuccess'] ?? 0;
+                          final numberOfPosts =
+                              snapshot.data!['NumberOfPosts'] ?? 0;
+                          final stars =
+                              calculateStars(exchangeSuccess, numberOfPosts);
                           return Column(
                             children: [
                               Column(
                                 children: [
-                                  const SizedBox(
-                                    height: 20,
+                                  SizedBox(
+                                    height:
+                                        MediaQuery.of(context).size.height / 55,
                                   ),
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.start,
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      const SizedBox(
-                                        width: 25,
+                                      SizedBox(
+                                        width:
+                                            MediaQuery.of(context).size.width /
+                                                30,
                                       ),
                                       Container(
                                         decoration: BoxDecoration(
                                           shape: BoxShape.circle,
                                           border: Border.all(
-                                            color: Colors.black, // สีของเส้นขอบ
-                                            width: 1.5, // ความกว้างของเส้นขอบ
+                                            color: Colors.black,
+                                            width: 1.5,
                                           ),
                                         ),
                                         child: CircleAvatar(
@@ -81,39 +113,64 @@ class _GuestProfileState extends State<GuestProfile> {
                                           backgroundColor: Colors.white,
                                         ),
                                       ),
-                                      const SizedBox(
-                                        width: 30,
+                                      SizedBox(
+                                        width:
+                                            MediaQuery.of(context).size.width /
+                                                20,
                                       ),
                                       Column(
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                          const SizedBox(
-                                            height: 10,
+                                          SizedBox(
+                                            height: MediaQuery.of(context)
+                                                    .size
+                                                    .height /
+                                                80,
                                           ),
                                           Text(
                                             snapshot.data!['Name'] as String,
                                             style:
                                                 const TextStyle(fontSize: 20),
                                           ),
-                                          const Text("ดาว"),
-                                          const Row(
+                                          SizedBox(
+                                            height: MediaQuery.of(context)
+                                                    .size
+                                                    .height *
+                                                0.002,
+                                          ),
+                                          Row(
+                                            children: buildStars(stars),
+                                          ),
+                                          SizedBox(
+                                            height: MediaQuery.of(context)
+                                                    .size
+                                                    .height *
+                                                0.005,
+                                          ),
+                                          Row(
                                             mainAxisAlignment:
                                                 MainAxisAlignment.center,
                                             children: [
-                                              Text('จำนวนโพสต์'),
+                                              const Text('จำนวนโพสต์'),
                                               SizedBox(
-                                                width: 20,
+                                                width: MediaQuery.of(context)
+                                                        .size
+                                                        .width /
+                                                    20,
                                               ),
-                                              Text("แลกเปลี่ยนสำเร็จ")
+                                              const Text("แลกเปลี่ยนสำเร็จ")
                                             ],
                                           ),
                                           Row(
                                             mainAxisAlignment:
                                                 MainAxisAlignment.center,
                                             children: [
-                                              const SizedBox(
-                                                width: 35,
+                                              SizedBox(
+                                                width: MediaQuery.of(context)
+                                                        .size
+                                                        .width /
+                                                    13,
                                               ),
                                               SizedBox(
                                                 child: snapshot.data![
@@ -124,10 +181,20 @@ class _GuestProfileState extends State<GuestProfile> {
                                                         .toString())
                                                     : const Text('0'),
                                               ),
-                                              const SizedBox(
-                                                width: 95,
+                                              SizedBox(
+                                                width: MediaQuery.of(context)
+                                                        .size
+                                                        .width /
+                                                    4,
                                               ),
-                                              const Text("0")
+                                              SizedBox(
+                                                  child: snapshot.data![
+                                                              'exchangeSuccess'] !=
+                                                          null
+                                                      ? Text(snapshot.data![
+                                                              'exchangeSuccess']
+                                                          .toString())
+                                                      : const Text('0')),
                                             ],
                                           ),
                                           const SizedBox(
@@ -147,8 +214,9 @@ class _GuestProfileState extends State<GuestProfile> {
                     ),
                   ),
                 ),
-                const SizedBox(
-                  height: 25,
+                Container(
+                  color: Colors.white,
+                  height: 20,
                 ),
                 Container(
                   color: Colors.white,
@@ -200,27 +268,9 @@ class _GuestProfileState extends State<GuestProfile> {
                 Expanded(
                   child: historyWithPost[0]
                       ? GuestPostProfile(userId: widget.informationUserUID)
-                      : VisitHistoryPost(
-                          informationUserUID: widget.informationUserUID),
+                      : GuestHistoryProfile(userId: widget.informationUserUID),
                 ),
               ],
             )));
-  }
-}
-
-class VisitHistoryPost extends StatelessWidget {
-  final String informationUserUID;
-
-  const VisitHistoryPost({required this.informationUserUID});
-
-  @override
-  Widget build(BuildContext context) {
-    // Implement the widget that shows the user's exchange history
-    return Container(
-      color: Colors.green[50],
-      child: Center(
-        child: Text("ประวัติการแลกเปลี่ยนของผู้ใช้: $informationUserUID"),
-      ),
-    );
   }
 }

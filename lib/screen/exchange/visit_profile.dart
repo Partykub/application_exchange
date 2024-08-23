@@ -1,7 +1,9 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:exchange/class/pull_image.dart';
 import 'package:exchange/screen/exchange/visit_history_profile.dart';
 import 'package:exchange/screen/exchange/visit_post_profile.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 class VisitProfile extends StatefulWidget {
@@ -14,6 +16,11 @@ class VisitProfile extends StatefulWidget {
 
 class _VisitProfileState extends State<VisitProfile> {
   List<bool> historyWithPost = [true, false];
+  final FirebaseFirestore firestore = FirebaseFirestore.instance;
+  final TextEditingController _controller = TextEditingController();
+  final auth = FirebaseAuth.instance;
+
+  String? selectedReason;
 
   int calculateStars(int exchangeSuccess, int numberOfPosts) {
     if (numberOfPosts == 0) return 0;
@@ -37,27 +44,305 @@ class _VisitProfileState extends State<VisitProfile> {
     return starWidgets;
   }
 
+  void reportDialog(BuildContext context, userID) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
+        backgroundColor: Colors.grey[50],
+        title: const Text(
+          'รายงานโพสต์',
+          style: TextStyle(
+            fontSize: 20,
+            color: Colors.black,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: SingleChildScrollView(
+          child: ListBody(
+            children: <Widget>[
+              const Text(
+                'เหตุใดคุณจึงรายงานโพสต์นี้',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 10),
+              _buildReportOption(
+                  'โพสต์สิ่งของที่ผิดกฎหมายหรือสิ่งของต้องห้าม', userID),
+              _buildReportOption(
+                  'โพสต์สิ่งของที่มีเนื้อหาลามกอนาจารหรือไม่เหมาะสม', userID),
+              _buildReportOption(
+                  'สิ่งของไม่ตรงตามคำบรรยายหรือรูปภาพที่โพสต์', userID),
+              _buildReportOption(
+                  'โพสต์สิ่งของที่มีความเสี่ยงต่อความปลอดภัยหรือสุขภาพ',
+                  userID),
+              _buildReportOption(
+                  'การโพสต์เนื้อหาที่เป็นการหลอกลวงหรือฉ้อโกง', userID),
+              _buildReportOption(
+                  'การใช้ถ้อยคำที่ไม่เหมาะสมหรือการก่อกวนในโพสต์', userID),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReportOption(String text, userId) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      title: Text(
+        text,
+        style: const TextStyle(color: Colors.black87),
+      ),
+      trailing: const Icon(
+        Icons.arrow_forward_ios,
+        size: 16,
+        color: Colors.black,
+      ),
+      onTap: () {
+        _handleReasonTap(text, userId);
+      },
+    );
+  }
+
+  void _handleReasonTap(String reason, userId) {
+    setState(() {
+      selectedReason = reason;
+    });
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
+        backgroundColor: Colors.grey[50],
+        title: const Text(
+          'รายงานโพสต์',
+          style: TextStyle(
+            fontSize: 20,
+            color: Colors.black,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              const Text(
+                'คุณกำลังจะส่งรายงาน',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 1),
+              const Text(
+                'เราจะลบเฉพาะเนื้อหาที่ขัดต่อมาตรฐานชุมชนของเราเท่านั้น คุณสามารถตรวจสอบหรือแก้ไขรายละเอียดรายงานของคุณได้ด้านล่าง',
+                style: TextStyle(
+                  fontWeight: FontWeight.normal,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 10),
+              _buildReasonContainer(
+                  'เหตุใดคุณจึงรายงานโพสต์นี้', selectedReason!),
+              const SizedBox(height: 10),
+              _buildAdditionalInfoContainer(),
+              const SizedBox(height: 10),
+              ElevatedButton(
+                onPressed: () async {
+                  final reportRef = firestore.collection('Reports').doc();
+
+                  await reportRef.set({
+                    'reportBy': auth.currentUser!.uid,
+                    'userID': userId,
+                    'reason': selectedReason!,
+                    'details': _controller.text,
+                    'status': 'Pending',
+                    'createdAt': FieldValue.serverTimestamp(),
+                  });
+                  if (mounted) {
+                    Navigator.of(context).pop();
+                    Navigator.of(context).pop();
+                  }
+                },
+                style: ButtonStyle(
+                  backgroundColor: MaterialStateProperty.all(Colors.black),
+                  shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                    RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  fixedSize: MaterialStateProperty.all(const Size(100, 30)),
+                ),
+                child: const Text(
+                  'ส่ง',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReasonContainer(String title, String content) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            spreadRadius: 2,
+            blurRadius: 5,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(12.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.normal,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            content,
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAdditionalInfoContainer() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            spreadRadius: 2,
+            blurRadius: 5,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(12.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'โปรดอธิบายเพิ่มเติม',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.normal,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 5),
+          TextField(
+            controller: _controller,
+            maxLines: 2,
+            decoration: InputDecoration(
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(
+                    color: Colors.grey, width: 1), // กรอบพื้นฐาน
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(
+                    color: Colors.grey, width: 1), // กรอบเมื่อเปิดใช้งาน
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(
+                    color: Colors.black54, width: 1), // กรอบเมื่อมีโฟกัส
+              ),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              hintText: 'ระบุรายละเอียดเพิ่มเติมที่นี่...',
+              hintStyle: const TextStyle(color: Colors.black38, fontSize: 14),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
         color: Colors.grey[200],
         home: Scaffold(
             appBar: AppBar(
-                backgroundColor: Colors.white,
-                elevation: 0,
-                title: const Text("เยี่ยมชมโปรไฟล์"),
-                bottom: PreferredSize(
-                  preferredSize: const Size.fromHeight(1.0),
-                  child: Container(
-                    color: Colors.grey[300],
-                    height: 0.4,
-                  ),
+              backgroundColor: Colors.white,
+              elevation: 0,
+              title: const Text("เยี่ยมชมโปรไฟล์"),
+              bottom: PreferredSize(
+                preferredSize: const Size.fromHeight(1.0),
+                child: Container(
+                  color: Colors.grey[300],
+                  height: 0.4,
                 ),
-                leading: IconButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
-                    icon: const Icon(Icons.arrow_back_ios))),
+              ),
+              leading: IconButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  icon: const Icon(Icons.arrow_back_ios)),
+            ),
+            endDrawer: SizedBox(
+              width: MediaQuery.of(context).size.width / 2.3,
+              child: Drawer(
+                child: ListView(
+                  padding: EdgeInsets.zero,
+                  children: [
+                    const DrawerHeader(
+                        decoration: BoxDecoration(color: Colors.black54),
+                        child: Text(
+                          'เมนู',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 24,
+                          ),
+                        )),
+                    ListTile(
+                      leading: const Icon(
+                        Icons.report,
+                        color: Colors.redAccent,
+                      ),
+                      title: const Text(
+                        'รายงานปัญหา',
+                        style: TextStyle(fontSize: 15, color: Colors.redAccent),
+                      ),
+                      onTap: () {
+                        reportDialog(context, widget.informationUserUID);
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
             body: Column(
               children: [
                 Expanded(
@@ -83,16 +368,19 @@ class _VisitProfileState extends State<VisitProfile> {
                             children: [
                               Column(
                                 children: [
-                                  const SizedBox(
-                                    height: 20,
+                                  SizedBox(
+                                    height:
+                                        MediaQuery.of(context).size.height / 55,
                                   ),
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.start,
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      const SizedBox(
-                                        width: 25,
+                                      SizedBox(
+                                        width:
+                                            MediaQuery.of(context).size.width /
+                                                30,
                                       ),
                                       Container(
                                         decoration: BoxDecoration(
@@ -110,41 +398,64 @@ class _VisitProfileState extends State<VisitProfile> {
                                           backgroundColor: Colors.white,
                                         ),
                                       ),
-                                      const SizedBox(
-                                        width: 30,
+                                      SizedBox(
+                                        width:
+                                            MediaQuery.of(context).size.width /
+                                                20,
                                       ),
                                       Column(
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                          const SizedBox(
-                                            height: 10,
+                                          SizedBox(
+                                            height: MediaQuery.of(context)
+                                                    .size
+                                                    .height /
+                                                80,
                                           ),
                                           Text(
                                             snapshot.data!['Name'] as String,
                                             style:
                                                 const TextStyle(fontSize: 20),
                                           ),
+                                          SizedBox(
+                                            height: MediaQuery.of(context)
+                                                    .size
+                                                    .height *
+                                                0.002,
+                                          ),
                                           Row(
                                             children: buildStars(stars),
                                           ),
-                                          const Row(
+                                          SizedBox(
+                                            height: MediaQuery.of(context)
+                                                    .size
+                                                    .height *
+                                                0.005,
+                                          ),
+                                          Row(
                                             mainAxisAlignment:
                                                 MainAxisAlignment.center,
                                             children: [
-                                              Text('จำนวนโพสต์'),
+                                              const Text('จำนวนโพสต์'),
                                               SizedBox(
-                                                width: 20,
+                                                width: MediaQuery.of(context)
+                                                        .size
+                                                        .width /
+                                                    20,
                                               ),
-                                              Text("แลกเปลี่ยนสำเร็จ")
+                                              const Text("แลกเปลี่ยนสำเร็จ")
                                             ],
                                           ),
                                           Row(
                                             mainAxisAlignment:
                                                 MainAxisAlignment.center,
                                             children: [
-                                              const SizedBox(
-                                                width: 35,
+                                              SizedBox(
+                                                width: MediaQuery.of(context)
+                                                        .size
+                                                        .width /
+                                                    13,
                                               ),
                                               SizedBox(
                                                 child: snapshot.data![
@@ -155,8 +466,11 @@ class _VisitProfileState extends State<VisitProfile> {
                                                         .toString())
                                                     : const Text('0'),
                                               ),
-                                              const SizedBox(
-                                                width: 95,
+                                              SizedBox(
+                                                width: MediaQuery.of(context)
+                                                        .size
+                                                        .width /
+                                                    4,
                                               ),
                                               SizedBox(
                                                   child: snapshot.data![
@@ -239,7 +553,7 @@ class _VisitProfileState extends State<VisitProfile> {
                 Container(
                   child: historyWithPost[0]
                       ? VisitPostProfile(userId: widget.informationUserUID)
-                      : VisitHistoryPost(),
+                      : VisitHistoryPost(userId: widget.informationUserUID),
                 )
               ],
             )));

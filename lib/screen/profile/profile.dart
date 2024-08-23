@@ -1,12 +1,17 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:exchange/class/pull_image.dart';
+import 'package:exchange/main.dart';
+import 'package:exchange/screen/profile/chat_admin.dart';
 import 'package:exchange/screen/profile/edit_profile.dart';
 import 'package:exchange/screen/profile/history_post.dart';
 import 'package:exchange/screen/profile/post_profile.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class Profile extends StatefulWidget {
-  final informationUserUID;
+  final String informationUserUID;
   const Profile({super.key, required this.informationUserUID});
   @override
   State<Profile> createState() => _ProfileState();
@@ -14,6 +19,7 @@ class Profile extends StatefulWidget {
 
 class _ProfileState extends State<Profile> {
   List<bool> historyWithPost = [true, false];
+  bool chatAdminLoading = false;
 
   int calculateStars(int exchangeSuccess, int numberOfPosts) {
     if (numberOfPosts == 0) return 0;
@@ -29,12 +35,49 @@ class _ProfileState extends State<Profile> {
   List<Widget> buildStars(int stars) {
     List<Widget> starWidgets = [];
     for (int i = 0; i < stars; i++) {
-      starWidgets.add(const Icon(Icons.star, color: Colors.yellow));
+      starWidgets.add(const Icon(
+        Icons.star,
+        color: Colors.yellow,
+        size: 20,
+      ));
     }
     for (int i = stars; i < 5; i++) {
-      starWidgets.add(const Icon(Icons.star_border, color: Colors.grey));
+      starWidgets.add(const Icon(
+        Icons.star_border,
+        color: Colors.grey,
+        size: 20,
+      ));
     }
     return starWidgets;
+  }
+
+  Future<String> buildChat() async {
+    DocumentReference docRef =
+        await FirebaseFirestore.instance.collection("adminChat").add({
+      'userIds': [widget.informationUserUID, 'wd2xQW3GODRH3AhhDFiVnPHCYim2'],
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+    String docId = docRef.id;
+    return docId;
+  }
+
+  Future<Map<String, dynamic>> getChat() async {
+    var querySnapshot = await FirebaseFirestore.instance
+        .collection("adminChat")
+        .where('userIds', arrayContains: widget.informationUserUID)
+        .get();
+
+    if (querySnapshot.docs.isNotEmpty) {
+      var docId = querySnapshot.docs.first.id;
+      return {
+        'found': true,
+        'docId': docId,
+      }; // คืนค่า true และ doc.id ที่หาเจอ
+    } else {
+      return {
+        'found': false,
+      }; // คืนค่า false และไม่มี doc.id
+    }
   }
 
   @override
@@ -42,15 +85,91 @@ class _ProfileState extends State<Profile> {
     return MaterialApp(
       home: Scaffold(
           appBar: AppBar(
-            elevation: 0,
-            toolbarHeight: 3,
+            title: const Text('โปรไฟล์'),
             backgroundColor: Colors.white,
           ),
-          body: Column(
-            children: [
-              Expanded(
-                flex: 0,
-                child: Container(
+          endDrawer: SizedBox(
+            width: 200,
+            child: Drawer(
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: [
+                  const DrawerHeader(
+                      decoration: BoxDecoration(color: Colors.black54),
+                      child: Text(
+                        'เมนู',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                        ),
+                      )),
+                  ListTile(
+                    leading: const FaIcon(FontAwesomeIcons.lifeRing),
+                    title: const Text(
+                      'การช่วยเหลือหรือการสนับสนุน',
+                      style: TextStyle(fontSize: 15),
+                    ),
+                    onTap: chatAdminLoading
+                        ? null
+                        : () async {
+                            try {
+                              setState(() {
+                                chatAdminLoading = true;
+                              });
+                              var hasChat = await getChat();
+                              if (hasChat['found']) {
+                                String docId = hasChat['docId'];
+                                if (mounted) {
+                                  Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => ChatAdmin(
+                                            chatId: docId, name: 'ผู้ดูแลระบบ'),
+                                      ));
+                                }
+                              } else {
+                                var docId = await buildChat();
+                                if (mounted) {
+                                  Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => ChatAdmin(
+                                            chatId: docId, name: 'Admin'),
+                                      ));
+                                }
+                              }
+                            } catch (e) {
+                              print(e);
+                            } finally {
+                              setState(() {
+                                chatAdminLoading = false;
+                              });
+                            }
+                          },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.logout),
+                    title: const Text(
+                      'ออกจากระบบ',
+                      style: TextStyle(fontSize: 15),
+                    ),
+                    onTap: () {
+                      FirebaseAuth.instance.signOut();
+                      Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const MyApp(),
+                          ));
+                    },
+                  )
+                ],
+              ),
+            ),
+          ),
+          body: SafeArea(
+            child: Column(
+              children: [
+                Container(
                   color: Colors.white,
                   child: FutureBuilder(
                     future: pullImage(widget.informationUserUID),
@@ -71,15 +190,17 @@ class _ProfileState extends State<Profile> {
                           children: [
                             Column(
                               children: [
-                                const SizedBox(
-                                  height: 20,
+                                SizedBox(
+                                  height:
+                                      MediaQuery.of(context).size.height / 55,
                                 ),
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.start,
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const SizedBox(
-                                      width: 25,
+                                    SizedBox(
+                                      width: MediaQuery.of(context).size.width /
+                                          30,
                                     ),
                                     Container(
                                       decoration: BoxDecoration(
@@ -97,40 +218,62 @@ class _ProfileState extends State<Profile> {
                                         backgroundColor: Colors.white,
                                       ),
                                     ),
-                                    const SizedBox(
-                                      width: 30,
+                                    SizedBox(
+                                      width: MediaQuery.of(context).size.width /
+                                          20,
                                     ),
                                     Column(
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
-                                        const SizedBox(
-                                          height: 10,
+                                        SizedBox(
+                                          height: MediaQuery.of(context)
+                                                  .size
+                                                  .height /
+                                              80,
                                         ),
                                         Text(
                                           snapshot.data!['Name'] as String,
-                                          style: const TextStyle(fontSize: 20),
+                                          style: const TextStyle(fontSize: 18),
+                                        ),
+                                        SizedBox(
+                                          height: MediaQuery.of(context)
+                                                  .size
+                                                  .height *
+                                              0.002,
                                         ),
                                         Row(
                                           children: buildStars(stars),
                                         ),
-                                        const Row(
+                                        SizedBox(
+                                          height: MediaQuery.of(context)
+                                                  .size
+                                                  .height *
+                                              0.005,
+                                        ),
+                                        Row(
                                           mainAxisAlignment:
                                               MainAxisAlignment.center,
                                           children: [
-                                            Text('จำนวนโพสต์'),
+                                            const Text('จำนวนโพสต์'),
                                             SizedBox(
-                                              width: 20,
+                                              width: MediaQuery.of(context)
+                                                      .size
+                                                      .width /
+                                                  20,
                                             ),
-                                            Text("แลกเปลี่ยนสำเร็จ")
+                                            const Text("แลกเปลี่ยนสำเร็จ")
                                           ],
                                         ),
                                         Row(
                                           mainAxisAlignment:
                                               MainAxisAlignment.center,
                                           children: [
-                                            const SizedBox(
-                                              width: 35,
+                                            SizedBox(
+                                              width: MediaQuery.of(context)
+                                                      .size
+                                                      .width /
+                                                  13,
                                             ),
                                             SizedBox(
                                               child: numberOfPosts != null
@@ -138,8 +281,11 @@ class _ProfileState extends State<Profile> {
                                                       numberOfPosts.toString())
                                                   : const Text('0'),
                                             ),
-                                            const SizedBox(
-                                              width: 95,
+                                            SizedBox(
+                                              width: MediaQuery.of(context)
+                                                      .size
+                                                      .width /
+                                                  4,
                                             ),
                                             SizedBox(
                                               child: exchangeSuccess != null
@@ -203,64 +349,64 @@ class _ProfileState extends State<Profile> {
                           ],
                         );
                       }
-                      return const Text("No Profile found");
+                      return const Center(
+                        child: Text(''),
+                      );
                     },
                   ),
                 ),
-              ),
-              Container(
-                color: Colors.white,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: ToggleButtons(
-                        isSelected: historyWithPost,
-                        onPressed: (int index) {
-                          setState(() {
-                            historyWithPost = [false, false];
-                            historyWithPost[index] = true;
-                          });
-                        },
-                        selectedColor: Colors.black,
-                        color: Colors.grey[400],
-                        fillColor: Colors.transparent,
-                        borderRadius: BorderRadius.circular(0),
-                        selectedBorderColor: Colors.black,
-                        borderColor: Colors.grey[400],
-                        borderWidth: 1.0,
-                        children: [
-                          Container(
-                            alignment: Alignment.center,
-                            width:
-                                ((MediaQuery.of(context).size.width / 2) - 1.5),
-                            child: const Text(
-                              "โพสต์",
-                              textAlign: TextAlign.center,
-                              style: TextStyle(fontSize: 14.0),
+                Container(
+                  color: Colors.white,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: ToggleButtons(
+                          isSelected: historyWithPost,
+                          onPressed: (int index) {
+                            setState(() {
+                              historyWithPost = [false, false];
+                              historyWithPost[index] = true;
+                            });
+                          },
+                          selectedColor: Colors.black,
+                          color: Colors.grey[400],
+                          fillColor: Colors.transparent,
+                          borderRadius: BorderRadius.circular(0),
+                          selectedBorderColor: Colors.black,
+                          borderColor: Colors.grey[400],
+                          borderWidth: 1.0,
+                          children: [
+                            Container(
+                              alignment: Alignment.center,
+                              width: ((MediaQuery.of(context).size.width / 2) -
+                                  1.5),
+                              child: const Text(
+                                "โพสต์",
+                                textAlign: TextAlign.center,
+                                style: TextStyle(fontSize: 14.0),
+                              ),
                             ),
-                          ),
-                          Container(
-                            alignment: Alignment.center,
-                            width:
-                                ((MediaQuery.of(context).size.width / 2) - 1.5),
-                            child: const Text(
-                              "ประวัติการแลกเปลี่ยน",
-                              textAlign: TextAlign.center,
-                              style: TextStyle(fontSize: 14.0),
+                            Container(
+                              alignment: Alignment.center,
+                              width: ((MediaQuery.of(context).size.width / 2) -
+                                  1.5),
+                              child: const Text(
+                                "ประวัติการแลกเปลี่ยน",
+                                textAlign: TextAlign.center,
+                                style: TextStyle(fontSize: 14.0),
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              Container(
-                child: historyWithPost[0]
+                historyWithPost[0]
                     ? PostProfile(userId: widget.informationUserUID)
                     : HistoryPost(),
-              )
-            ],
+              ],
+            ),
           )),
     );
   }

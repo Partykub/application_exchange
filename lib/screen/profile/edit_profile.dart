@@ -61,7 +61,7 @@ class _EditProfileState extends State<EditProfile> {
           // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Image updated successfully'),
+              content: Text('แก้ไขรูปโปรไฟล์สำเร็จ!'),
               duration: Duration(seconds: 2),
               behavior: SnackBarBehavior.floating,
             ),
@@ -96,7 +96,7 @@ class _EditProfileState extends State<EditProfile> {
         // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Username updated successfully'),
+            content: Text('แก้ไขชื่อผู้ใช้สำเร็จ!'),
             duration: Duration(seconds: 2),
             behavior: SnackBarBehavior.floating,
           ),
@@ -192,9 +192,8 @@ class _EditProfileState extends State<EditProfile> {
                               validator: (inputname) {
                                 if (inputname!.isEmpty) {
                                   return "กรุณากรอกชื่อผู้ใช้";
-                                } else if (!RegExp(r'^[a-zA-Z0-9]{3,10}$')
-                                    .hasMatch(inputname)) {
-                                  return "ต้องมีตัวอักษร 3-10 ตัว";
+                                } else if (inputname.length < 6) {
+                                  return 'ต้องมีตัวอักษรอย่างน้อย 6 ตัวอักษร';
                                 }
                                 return null;
                               },

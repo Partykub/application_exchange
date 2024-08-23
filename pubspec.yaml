@@ -46,9 +46,27 @@ dependencies:
   popover: ^0.3.0
   cached_network_image: ^3.3.1
   intl: ^0.17.0
-  video_player: ^2.1.14
+  video_player: ^2.8.5
   video_thumbnail: ^0.5.0
   permission_handler: ^11.3.1
+  connectivity_plus: ^2.3.4
+  chewie: ^1.2.2
+  better_player: ^0.0.75
+  flutter_cache_manager: ^3.3.1
+  dash_chat_2: ^0.0.15
+  flutter_chat_ui: ^1.6.6
+  open_filex: ^4.4.0
+  file_picker: ^5.2.10
+  flutter_chat_types: ^3.6.2
+  mime: ^1.0.5
+  firebase_messaging: ^14.7.19
+  http: ^1.2.0
+  flutter_rating_bar: ^4.0.1
+  cloud_functions: ^4.6.8
+  font_awesome_flutter: ^10.7.0
+  flutter_vector_icons: ^2.0.0
+  pin_code_fields: ^8.0.1
+
   
 
 

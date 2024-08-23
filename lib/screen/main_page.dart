@@ -27,7 +27,7 @@ class _MainScreenState extends State<MainScreen> {
         child: Scaffold(
           body: TabBarView(
             children: [
-              Container(child: const Exchange()),
+              Container(child: const SafeArea(child: Exchange())),
               Container(
                 child: const PostLike(),
               ),
@@ -43,11 +43,15 @@ class _MainScreenState extends State<MainScreen> {
             ],
           ),
           backgroundColor: const Color(0xFFF7F7F7),
-          bottomNavigationBar: const SizedBox(
-            height: 70, // ปรับความสูงของ TabBar ตามต้องการ
-            child: ColoredBox(
-              color: Colors.black, // กำหนดสีพื้นหลังของ TabBar
+          bottomNavigationBar: SizedBox(
+            height: (MediaQuery.of(context).size.height / 100) * 8,
+            child: const ColoredBox(
+              color: Colors.black,
               child: TabBar(
+                indicatorColor: Colors.white,
+                indicatorWeight: 3.0,
+                labelColor: Colors.white,
+                unselectedLabelColor: Colors.grey,
                 tabs: [
                   Tab(
                     icon: Icon(

@@ -19,10 +19,11 @@ class _PostProfileState extends State<PostProfile> {
       stream: FirebaseFirestore.instance
           .collection('posts')
           .where('UserId', isEqualTo: widget.userId)
+          .where('status', isEqualTo: 'available')
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return Container();
         }
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return Expanded(
@@ -34,14 +35,14 @@ class _PostProfileState extends State<PostProfile> {
                   children: [
                     const Icon(
                       Icons.camera_alt_outlined,
-                      size: 50,
+                      size: 40,
                     ),
                     SizedBox(
                       height: MediaQuery.of(context).size.height / 130,
                     ),
                     const Text(
                       "ยังไม่มีโพสต์",
-                      style: TextStyle(fontSize: 20),
+                      style: TextStyle(fontSize: 18),
                     ),
                   ],
                 ),

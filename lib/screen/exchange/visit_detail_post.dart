@@ -15,9 +15,14 @@ class VisitDetailPost extends StatefulWidget {
 }
 
 class _VisitDetailPostState extends State<VisitDetailPost> {
+  TextEditingController bidController = TextEditingController();
+  final TextEditingController _controller = TextEditingController();
+  final FirebaseFirestore firestore = FirebaseFirestore.instance;
+  final auth = FirebaseAuth.instance;
   bool isFavorite = false;
   bool isLoading = false;
-  TextEditingController bidController = TextEditingController();
+  bool waitingReport = false;
+  String? selectedReason;
 
   @override
   void initState() {
@@ -93,21 +98,21 @@ class _VisitDetailPostState extends State<VisitDetailPost> {
       barrierDismissible: false,
       builder: (BuildContext context) {
         return AlertDialog(
-          backgroundColor: Colors.grey[300],
+          backgroundColor: Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(15),
           ),
           title: const Text(
             'เสนอราคา',
             style:
-                TextStyle(color: Colors.black54, fontWeight: FontWeight.bold),
+                TextStyle(color: Colors.black87, fontWeight: FontWeight.w500),
           ),
           content: SingleChildScrollView(
             child: ListBody(
               children: <Widget>[
                 const Text(
                   'ใส่ราคาที่คุณต้องการเสนอ (บาท):',
-                  style: TextStyle(color: Colors.black54),
+                  style: TextStyle(color: Colors.black87),
                 ),
                 const SizedBox(height: 10),
                 TextField(
@@ -143,6 +148,7 @@ class _VisitDetailPostState extends State<VisitDetailPost> {
                   const Text('เสนอ', style: TextStyle(color: Colors.black54)),
               onPressed: () {
                 createChat(postId, userId, bidController.text);
+
                 Navigator.of(context).pop();
               },
             ),
@@ -152,12 +158,258 @@ class _VisitDetailPostState extends State<VisitDetailPost> {
     );
   }
 
+  void _handleReasonTap(String reason, postId) {
+    setState(() {
+      selectedReason = reason;
+    });
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
+        backgroundColor: Colors.grey[50],
+        title: const Text(
+          'รายงานโพสต์',
+          style: TextStyle(
+            fontSize: 20,
+            color: Colors.black,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              const Text(
+                'คุณกำลังจะส่งรายงาน',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 1),
+              const Text(
+                'เราจะลบเฉพาะเนื้อหาที่ขัดต่อมาตรฐานชุมชนของเราเท่านั้น คุณสามารถตรวจสอบหรือแก้ไขรายละเอียดรายงานของคุณได้ด้านล่าง',
+                style: TextStyle(
+                  fontWeight: FontWeight.normal,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 10),
+              _buildReasonContainer(
+                  'เหตุใดคุณจึงรายงานโพสต์นี้', selectedReason!),
+              const SizedBox(height: 10),
+              _buildAdditionalInfoContainer(),
+              const SizedBox(height: 10),
+              ElevatedButton(
+                onPressed: () async {
+                  final reportRef = firestore.collection('Reports').doc();
+
+                  await reportRef.set({
+                    'reportBy': auth.currentUser!.uid,
+                    'postID': postId,
+                    'reason': selectedReason!,
+                    'details': _controller.text,
+                    'status': 'Pending',
+                    'createdAt': FieldValue.serverTimestamp(),
+                  });
+                  if (mounted) {
+                    Navigator.of(context).pop();
+                    Navigator.of(context).pop();
+                  }
+                },
+                style: ButtonStyle(
+                  backgroundColor: MaterialStateProperty.all(Colors.black),
+                  shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                    RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  fixedSize: MaterialStateProperty.all(const Size(100, 30)),
+                ),
+                child: const Text(
+                  'ส่ง',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReasonContainer(String title, String content) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            spreadRadius: 2,
+            blurRadius: 5,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(12.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.normal,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            content,
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAdditionalInfoContainer() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            spreadRadius: 2,
+            blurRadius: 5,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(12.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'โปรดอธิบายเพิ่มเติม',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.normal,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 5),
+          TextField(
+            controller: _controller,
+            maxLines: 2,
+            decoration: InputDecoration(
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(
+                    color: Colors.grey, width: 1), // กรอบพื้นฐาน
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(
+                    color: Colors.grey, width: 1), // กรอบเมื่อเปิดใช้งาน
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(
+                    color: Colors.black54, width: 1), // กรอบเมื่อมีโฟกัส
+              ),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              hintText: 'ระบุรายละเอียดเพิ่มเติมที่นี่...',
+              hintStyle: const TextStyle(color: Colors.black38, fontSize: 14),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReportOption(String text, postId) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      title: Text(
+        text,
+        style: const TextStyle(color: Colors.black87),
+      ),
+      trailing: const Icon(
+        Icons.arrow_forward_ios,
+        size: 16,
+        color: Colors.black,
+      ),
+      onTap: () {
+        _handleReasonTap(text, postId);
+      },
+    );
+  }
+
+  void reportDialog(BuildContext context, postId) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
+        backgroundColor: Colors.grey[50],
+        title: const Text(
+          'รายงานโพสต์',
+          style: TextStyle(
+            fontSize: 20,
+            color: Colors.black,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: SingleChildScrollView(
+          child: ListBody(
+            children: <Widget>[
+              const Text(
+                'เหตุใดคุณจึงรายงานโพสต์นี้',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 10),
+              _buildReportOption(
+                  'โพสต์สิ่งของที่ผิดกฎหมายหรือสิ่งของต้องห้าม', postId),
+              _buildReportOption(
+                  'โพสต์สิ่งของที่มีเนื้อหาลามกอนาจารหรือไม่เหมาะสม', postId),
+              _buildReportOption(
+                  'สิ่งของไม่ตรงตามคำบรรยายหรือรูปภาพที่โพสต์', postId),
+              _buildReportOption(
+                  'โพสต์สิ่งของที่มีความเสี่ยงต่อความปลอดภัยหรือสุขภาพ',
+                  postId),
+              _buildReportOption(
+                  'การโพสต์เนื้อหาที่เป็นการหลอกลวงหรือฉ้อโกง', postId),
+              _buildReportOption(
+                  'การใช้ถ้อยคำที่ไม่เหมาะสมหรือการก่อกวนในโพสต์', postId),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> createChat(
       String postId, String userId, String bidAmount) async {
     final currentUserId = FirebaseAuth.instance.currentUser!.uid;
 
     try {
-      await FirebaseFirestore.instance.collection('Chats').add({
+      final docRef = await FirebaseFirestore.instance.collection('Chats').add({
+        'matchType': 'offer',
         'status': 'offer',
         'postIds': [postId],
         'userIds': [userId, currentUserId],
@@ -166,10 +418,34 @@ class _VisitDetailPostState extends State<VisitDetailPost> {
         'bidAmount': bidAmount,
       });
 
-      print('Chat created successfully');
+      final chatId = docRef.id;
+      print('Chat created successfully with id: $chatId');
+
+      await sendNotification(chatId, userId, currentUserId, bidAmount);
     } catch (e) {
       print('Failed to create chat: $e');
     }
+  }
+
+  Future<void> sendNotification(String chatId, String userId,
+      String currentUserId, String bidAmount) async {
+    final FirebaseFirestore firestore = FirebaseFirestore.instance;
+
+    final notificationRef = firestore.collection('Notifications').doc();
+
+    await notificationRef.set({
+      'userId': userId,
+      'title': 'มีการเสนอซื้อสิ่งของ',
+      'message': 'เสนอซื้อสิ่งของ ของคุณในราคา',
+      'type': 'offer',
+      'bidAmount': bidAmount,
+      'read': false,
+      'createdAt': FieldValue.serverTimestamp(),
+      'chatId': chatId,
+      'currentUserId': currentUserId
+    });
+
+    print('Notification sent successfully');
   }
 
   @override
@@ -307,7 +583,7 @@ class _VisitDetailPostState extends State<VisitDetailPost> {
                                 ],
                                 onSelected: (value) {
                                   if (value == 'report') {
-                                    null;
+                                    reportDialog(context, widget.postId);
                                   } else {
                                     null;
                                   }

@@ -13,6 +13,10 @@ class MatchUtils {
     bool isMatched = false;
 
     for (var currentUserPost in currentUserPosts.docs) {
+      if (isMatched) {
+        break; // หากมีการแมทช์แล้ว หยุดการวนลูป
+      }
+
       List<String> currentUserLikes;
       if (currentUserPost.data().containsKey('likes')) {
         currentUserLikes = List<String>.from(currentUserPost['likes']);
@@ -29,10 +33,10 @@ class MatchUtils {
         transaction.set(chatRef, {
           'userIds': [currentUserId, postUserId],
           'postIds': [postSnapshot.id, currentUserPost.id],
-          'messages': [],
           'createdAt': FieldValue.serverTimestamp(),
           'isExchanged': false,
-          'status': 'match'
+          'status': 'match',
+          'matchType': 'match'
         });
 
         // อัปเดตสถานะโพสต์เป็น matched
@@ -76,8 +80,8 @@ class MatchUtils {
         'userId': postUserId,
         'likerId': currentUserId,
         'postName': postSnapshot['Name'] ?? '',
-        'title': '$currentUserId กดถูกใจโพสต์ของคุณ!',
-        'message': '$currentUserId ได้กดถูกใจโพสต์ของคุณ',
+        'title': 'มีการกดถูกใจโพสต์ของคุณ!',
+        'message': 'ได้กดถูกใจโพสต์ของคุณ',
         'type': 'like',
         'read': false,
         'createdAt': FieldValue.serverTimestamp(),

@@ -1,0 +1,64 @@
+void _showReviewDialog(BuildContext context, List<dynamic> postIds) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        String reviewText = '';
+        File? reviewImage;
+
+        return AlertDialog(
+          title: const Text('รีวิวการแลกเปลี่ยน'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                decoration: InputDecoration(labelText: 'เขียนรีวิว'),
+                onChanged: (value) {
+                  reviewText = value;
+                },
+              ),
+              SizedBox(height: 10),
+              ElevatedButton(
+                onPressed: () async {
+                  final picker = ImagePicker();
+                  final pickedFile =
+                      await picker.pickImage(source: ImageSource.gallery);
+                  if (pickedFile != null) {
+                    reviewImage = File(pickedFile.path);
+                  }
+                },
+                child: Text('เพิ่มรูปภาพ'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('ข้าม'),
+            ),
+            TextButton(
+              onPressed: () async {
+                // Save review to Firestore
+                if (reviewText.isNotEmpty || reviewImage != null) {
+                  for (var postId in postIds) {
+                    final postRef = _firestore.collection('posts').doc(postId);
+                    Map<String, dynamic> reviewData = {
+                      'reviewText': reviewText,
+                    };
+                    if (reviewImage != null) {
+                      final ref = _storage.ref().child(
+                          'review_images/${DateTime.now().millisecondsSinceEpoch}.jpg');
+                      await ref.putFile(reviewImage!);
+                      reviewData['reviewImage'] = await ref.getDownloadURL();
+                    }
+                    await postRef.update(reviewData);
+                  }
+                }
+                Navigator.of(context).pop();
+              },
+              child: Text('ยืนยัน'),
+            ),
+          ],
+        );
+      },
+    );
+  }

@@ -55,19 +55,43 @@ class NotificationPage extends StatelessWidget {
             itemBuilder: (context, index) {
               final notification =
                   notifications[index].data() as Map<String, dynamic>;
-              final String targetUserId = notification['likerId'] ??
-                  notification['matchedUserId'] ??
-                  '';
+              final String type = notification['type'];
+
+              final String userId = type == 'like'
+                  ? notification['likerId']
+                  : type == 'offer'
+                      ? notification['currentUserId']
+                      : type == 'match'
+                          ? notification['matchedUserId']
+                          : type == 'successfulExchange'
+                              ? notification['exchangeWith']
+                              : type == 'unsuccessful'
+                                  ? notification['currentUserId']
+                                  : type == 'firstConfirmExchange'
+                                      ? notification['userFirstConfirm']
+                                      : type == 'successfulExchange'
+                                          ? notification['exchangeWith']
+                                          : '';
+
+              if (userId.isEmpty) {
+                return const ListTile(
+                  title: Text('Error loading user information'),
+                );
+              }
+
               final String postName = notification['postName'] ?? '';
               final String chatId = notification['chatId'] ?? '';
-              final bool isMatch = notification['type'] == 'match';
+              final bool isRead = notification['read'] ?? false;
 
               return FutureBuilder<Map<String, dynamic>>(
-                future: getUserInfo(targetUserId),
+                future: getUserInfo(userId),
                 builder: (context, userSnapshot) {
                   if (userSnapshot.connectionState == ConnectionState.waiting) {
+                    return Container();
+                  }
+                  if (!userSnapshot.hasData) {
                     return const ListTile(
-                      title: Text('Loading...'),
+                      title: Text('Error loading user information'),
                     );
                   }
                   final userInfo = userSnapshot.data!;
@@ -75,62 +99,128 @@ class NotificationPage extends StatelessWidget {
                   final String profileImageUrl =
                       userInfo['profileImageUrl'] ?? '';
 
-                  return ListTile(
-                    leading: CircleAvatar(
-                      backgroundImage: profileImageUrl.isNotEmpty
-                          ? NetworkImage(profileImageUrl)
-                          : AssetImage('assets/default_avatar.png')
-                              as ImageProvider,
-                    ),
-                    title: Text(
-                      isMatch
-                          ? 'แมทช์สำเร็จ!'
-                          : '$userName กดถูกใจโพสต์ของคุณ!',
-                    ),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          isMatch
-                              ? 'คุณมีการแมทช์ใหม่กับผู้ใช้ $userName'
-                              : '$userName ได้กดถูกใจโพสต์ $postName ของคุณ',
-                        ),
-                        Text(
-                          DateFormat('dd/MM/yyyy HH:mm').format(
-                            (notification['createdAt'] as Timestamp).toDate(),
-                          ),
-                          style:
-                              const TextStyle(color: Colors.grey, fontSize: 12),
-                        ),
-                      ],
-                    ),
-                    onTap: () async {
-                      await FirebaseFirestore.instance
-                          .collection('Notifications')
-                          .doc(notifications[index].id)
-                          .update({'read': true});
+                  final TextStyle textStyle = isRead
+                      ? const TextStyle(fontWeight: FontWeight.normal)
+                      : const TextStyle(fontWeight: FontWeight.w600);
 
-                      if (isMatch) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ChatScreen(
-                              chatId: chatId,
-                              name: userName,
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(0, 1, 0, 1),
+                    child: Container(
+                        color: Colors.white,
+                        child: Stack(
+                          children: [
+                            isRead
+                                ? Container()
+                                : Positioned(
+                                    right: 10,
+                                    top: 35,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(2),
+                                      decoration: const BoxDecoration(
+                                        color: Colors.red,
+                                        borderRadius: BorderRadius.all(
+                                            Radius.circular(10)),
+                                      ),
+                                      constraints: const BoxConstraints(
+                                        minWidth: 10,
+                                        minHeight: 10,
+                                      ),
+                                    ),
+                                  ),
+                            ListTile(
+                              leading: CircleAvatar(
+                                backgroundImage: profileImageUrl.isNotEmpty
+                                    ? NetworkImage(profileImageUrl)
+                                    : const AssetImage(
+                                            'assets/default_avatar.png')
+                                        as ImageProvider,
+                              ),
+                              title: Text(
+                                type == 'match'
+                                    ? 'แมทช์สำเร็จ!'
+                                    : type == 'unsuccessful'
+                                        ? 'การแลกเปลี่ยนสิ่งของไม่สำเร็จ!'
+                                        : type == 'offer'
+                                            ? 'มีการเสนอซื้อสิ่งของของคุณ'
+                                            : type == 'firstConfirmExchange'
+                                                ? '$userName ยืนยันการแลกเปลี่ยน'
+                                                : type == 'successfulExchange'
+                                                    ? 'แลกเปลี่ยนสำเร็จ'
+                                                    : '$userName กดถูกใจโพสต์ของคุณ!',
+                                style: textStyle,
+                              ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    type == 'match'
+                                        ? 'คุณมีการแมทช์ใหม่กับผู้ใช้ $userName'
+                                        : type == 'unsuccessful'
+                                            ? '${notification['message']} กับ $userName'
+                                            : type == 'offer'
+                                                ? 'เสนอซื้อสิ่งของของคุณในราคา ${notification['bidAmount']} บาท โดย $userName'
+                                                : type == 'firstConfirmExchange'
+                                                    ? '$userName ยืนยันการแลกเปลี่ยนสำเร็จกับคุณ ระบบจะยืนยืนอัตโนมัติให้คุณภายใน 24 ชั่วโมง หากคุณไม่ได้ยืนยันการแลกเปลี่ยน'
+                                                    : type ==
+                                                            'successfulExchange'
+                                                        ? 'คุณทำการแลกเปลี่ยนสิ่งของกับ $userName สำเร็จ'
+                                                        : '$userName กดถูกใจโพสต์ $postName ของคุณ',
+                                    style: textStyle,
+                                  ),
+                                  Text(
+                                    DateFormat('dd/MM/yyyy HH:mm').format(
+                                      (notification['createdAt'] as Timestamp)
+                                          .toDate(),
+                                    ),
+                                    style: const TextStyle(
+                                        color: Colors.grey, fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                              onTap: () async {
+                                await FirebaseFirestore.instance
+                                    .collection('Notifications')
+                                    .doc(notifications[index].id)
+                                    .update({'read': true});
+
+                                if (type == 'match') {
+                                  // ignore: use_build_context_synchronously
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => ChatScreen(
+                                        chatId: chatId,
+                                        name: userName,
+                                      ),
+                                    ),
+                                  );
+                                } else if (type == 'offer') {
+                                  // ignore: use_build_context_synchronously
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => ChatScreen(
+                                        chatId: chatId,
+                                        name: userName,
+                                      ),
+                                    ),
+                                  );
+                                } else if (type == 'unsuccessful' ||
+                                    type == 'like') {
+                                  // ignore: use_build_context_synchronously
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => VisitProfile(
+                                        informationUserUID: userId,
+                                      ),
+                                    ),
+                                  );
+                                }
+                              },
                             ),
-                          ),
-                        );
-                      } else {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => VisitProfile(
-                              informationUserUID: targetUserId,
-                            ),
-                          ),
-                        );
-                      }
-                    },
+                          ],
+                        )),
                   );
                 },
               );

@@ -28,9 +28,12 @@ class _PostState extends State<Post> {
   Future<Uint8List?> _pickImageInPost() async {
     if (Platform.isAndroid) {
       if (!await Permission.storage.request().isGranted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('การอนุญาตถูกปฏิเสธในการเข้าถึงภาพถ่าย')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('การอนุญาตถูกปฏิเสธในการเข้าถึงที่เก็บข้อมูล')),
+          );
+        }
       }
       {
         null;
@@ -295,9 +298,6 @@ class _PostState extends State<Post> {
                                   validator: (inputItemName) {
                                     if (inputItemName!.isEmpty) {
                                       return "กรุณากรอกชื่อสิ่งของ";
-                                    } else if (!RegExp(r'^[ก-๙\s]{3,30}$')
-                                        .hasMatch(inputItemName)) {
-                                      return "ต้องเป็นคำภาษาไทย 3-10 ตัวอักษร";
                                     }
                                     return null;
                                   },
@@ -698,21 +698,14 @@ class _PostState extends State<Post> {
                       onPressed: isLoading
                           ? null
                           : () async {
-                              if (images[0] != null &&
-                                  images[1] != null &&
-                                  images[2] != null &&
-                                  images[3] != null) {
+                              if (images.isNotEmpty) {
                                 if (formKeyItemName.currentState!.validate() ==
                                     true) {
-                                  print("ผ่าน");
                                   if (formKeyItemDetail.currentState!
                                           .validate() ==
                                       true) {
-                                    print("ผ่าน2");
                                     if (_selectedOption != null) {
-                                      print("ผ่าน3");
                                       if (category != null) {
-                                        print("ผ่าน4");
                                         setState(() {
                                           isLoading = true;
                                         });

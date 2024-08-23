@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:exchange/screen/authLogin/login_main.dart';
+import 'package:exchange/screen/Login/main_login.dart';
+import 'package:exchange/screen/authLogin%20Test/login_main.dart';
 import 'package:exchange/screen/guest/guest_ctegory.dart';
 import 'package:exchange/screen/guest/guest_detail_exchange.dart';
 import 'package:exchange/screen/guest/guest_profile.dart';
@@ -71,9 +72,9 @@ class _GuestExchangeState extends State<GuestExchange> {
                   onPressed: () {
                     Navigator.push(
                         context,
-                        MaterialPageRoute(
-                          builder: (context) => const LoginScreen(),
-                        ));
+                        MaterialPageRoute(builder: (context) => MainLogin()
+                            // const LoginScreen(),
+                            ));
                   },
                   child: const Text(
                     "เข้าสู่ระบบ",
@@ -128,6 +129,7 @@ class _GuestExchangeState extends State<GuestExchange> {
                 child: StreamBuilder<QuerySnapshot>(
                   stream: FirebaseFirestore.instance
                       .collection('posts')
+                      .where('status', isEqualTo: 'available')
                       .snapshots(),
                   builder: (BuildContext context, AsyncSnapshot snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {

@@ -1,0 +1,329 @@
+const functions = require("firebase-functions");
+const admin = require("firebase-admin");
+const sgMail = require("@sendgrid/mail");
+admin.initializeApp();
+
+const sendGridAPIKey = functions.config().sendgrid.key;
+sgMail.setApiKey(sendGridAPIKey);
+
+exports.sendNewMessageNotification = functions.firestore
+    .document("Chats/{chatId}/messages/{messageId}")
+    .onCreate(async (snap, context) => {
+      const message = snap.data();
+      const chatId = context.params.chatId;
+
+      // Log ข้อความที่ถูกสร้างขึ้น
+      console.log(`New message created: ${JSON.stringify(message)}`);
+
+      // ดึงข้อมูลของแชทเพื่อหาผู้รับ
+      const chatDoc = await admin.firestore().collection("Chats").doc(chatId).get();
+      const chatData = chatDoc.data();
+      const senderId = message.senderId;
+
+      // Log ข้อมูลของแชท
+      console.log(`Chat data: ${JSON.stringify(chatData)}`);
+
+      // หาผู้รับที่ไม่ใช่ผู้ส่ง
+      const recipientId = chatData.userIds.find((uid) => uid !== senderId);
+
+      if (recipientId) {
+        // ดึงข้อมูลอีเมลของผู้รับ
+        const recipientDoc = await admin.firestore().collection("informationUser").doc(recipientId).get();
+        const recipientData = recipientDoc.data();
+        const recipientEmail = recipientData.Email;
+
+        // Log ข้อมูลของผู้รับ
+        console.log(`Recipient data: ${JSON.stringify(recipientData)}`);
+
+        // ดึงข้อมูลของผู้ส่งเพื่อหาชื่อ
+        const senderDoc = await admin.firestore().collection("informationUser").doc(senderId).get();
+        const senderData = senderDoc.data();
+        const senderName = senderData.Name;
+
+        // Log ข้อมูลของผู้ส่ง
+        console.log(`Sender data: ${JSON.stringify(senderData)}`);
+
+        const msg = {
+          to: recipientEmail,
+          from: "serviceappexchange@gmail.com",
+          subject: "การแจ้งเตือนข้อความใหม่",
+          text: `คุณมีข้อความใหม่จาก ${senderName}: ${message.text}`,
+        };
+
+        try {
+          await sgMail.send(msg);
+          console.log(`New message email sent successfully :${message.text}`);
+        } catch (error) {
+          console.error("Error sending new message email:", error);
+        }
+      } else {
+        console.log("No recipient found for the message.");
+      }
+    });
+
+
+exports.notifications = functions.firestore
+    .document("Notifications/{notificationsId}")
+    .onCreate(async (snap, context) => {
+      const notificationsData = snap.data();
+
+      console.log(`Start creating a notification: ${JSON.stringify(notificationsData)}`);
+
+      const typeData = notificationsData.type;
+
+      // ดึงข้อมูลของแชทเพื่อหาผู้รับ
+      const recipientId = notificationsData.userId;
+      const recipientDoc = await admin.firestore().collection("informationUser").doc(recipientId).get();
+      const recipientData = recipientDoc.data();
+      const recipientEmail = recipientData.Email;
+
+      console.log(`email ของผู้รับ ${recipientEmail}`);
+
+      switch (typeData) {
+        case "like": {
+          const likerIdRef = notificationsData.likerId;
+          const nameLikerIdRef = await admin.firestore().collection("informationUser").doc(likerIdRef).get();
+          const nameLikerData = nameLikerIdRef.data();
+          const nameLiker = nameLikerData.Name;
+
+          const msglike = {
+            to: recipientEmail,
+            from: "serviceappexchange@gmail.com",
+            subject: "มีการกดถูกใจโพสต์ของคุณ!",
+            text: `${nameLiker} ได้กดถูกใจโพสต์ของคุณ`,
+          };
+
+          try {
+            await sgMail.send(msglike);
+            console.log(`New message email sent successfully: type is ${typeData}`);
+          } catch (error) {
+            console.error("Error sending new message email:", error);
+          }
+          break;
+        }
+        case "offer": {
+          const OfferorRef = notificationsData.currentUserId;
+          const nameOfferorRef = await admin.firestore().collection("informationUser").doc(OfferorRef).get();
+          const nameOfferorData = nameOfferorRef.data();
+          const nameOfferor = nameOfferorData.Name;
+          console.log(`ชื่อของผู้เสนอซื้อ ${nameOfferor} และราคาที่เสนอ ${notificationsData.bidAmount}`);
+
+
+          const msgoffer = {
+            to: recipientEmail,
+            from: "serviceappexchange@gmail.com",
+            subject: "มีการเสนอซื้อสิ่งของ",
+            text: `${nameOfferor} เสนอซื้อสิ่งของ ของคุณในราคา ${notificationsData.bidAmount}`,
+          };
+
+          try {
+            await sgMail.send(msgoffer);
+            console.log(`New message email sent successfully: type is ${typeData}`);
+          } catch (error) {
+            console.error("Error sending new message email:", error);
+          }
+          break;
+        }
+        case "match": {
+          const matchedUserId = notificationsData.matchedUserId;
+          const matchedUserRef = await admin.firestore().collection("informationUser").doc(matchedUserId).get();
+          const matchedUserData = matchedUserRef.data();
+          const matchedUserName = matchedUserData.Name;
+
+          const msgmatch = {
+            to: recipientEmail,
+            from: "serviceappexchange@gmail.com",
+            subject: "แมทช์สำเร็จ!",
+            text: `คุณมีการแมทช์ใหม่กับผู้ใช้ ${matchedUserName}`,
+          };
+
+          try {
+            await sgMail.send(msgmatch);
+            console.log(`New message email sent successfully: type is ${typeData}`);
+          } catch (error) {
+            console.error("Error sending new message email:", error);
+          }
+          break;
+        }
+        case "successfulExchange": {
+          const exchangeWithId = notificationsData.exchangeWith;
+          const exchangeWithRef = await admin.firestore().collection("informationUser").doc(exchangeWithId).get();
+          const exchangeWithData = exchangeWithRef.data();
+          const exchangeWithName = exchangeWithData.Name;
+
+          const msgsuccessful = {
+            to: recipientEmail,
+            from: "serviceappexchange@gmail.com",
+            subject: "แลกเปลี่ยนสำเร็จ!",
+            text: `คุณทำการแลกเปลี่ยนสิ่งของกับ ${exchangeWithName} สำเร็จ`,
+          };
+
+          try {
+            await sgMail.send(msgsuccessful);
+            console.log(`New message email sent successfully: type is ${typeData}`);
+          } catch (error) {
+            console.error("Error sending new message email:", error);
+          }
+          break;
+        }
+        case "unsuccessful": {
+          const currentUserId = notificationsData.currentUserId;
+          const currentUserRef = await admin.firestore().collection("informationUser").doc(currentUserId).get();
+          const currentUserData = currentUserRef.data();
+          const currentUserName = currentUserData.Name;
+
+          const msgunsuccessful = {
+            to: recipientEmail,
+            from: "serviceappexchange@gmail.com",
+            subject: "แลกเปลี่ยนสำเร็จ!",
+            text: `คุณทำการแลกเปลี่ยนสิ่งของกับ ${currentUserName} สำเร็จ`,
+          };
+
+          try {
+            await sgMail.send(msgunsuccessful);
+            console.log(`New message email sent successfully: type is ${typeData}`);
+          } catch (error) {
+            console.error("Error sending new message email:", error);
+          }
+          break;
+        }
+        case "firstConfirmExchange": {
+          const userFirstConfirmId = notificationsData.userFirstConfirm;
+          const userFirstConfirmRef = await admin.firestore().collection("informationUser").doc(userFirstConfirmId).get();
+          const userFirstConfirmData = userFirstConfirmRef.data();
+          const userFirstConfirmName = userFirstConfirmData.Name;
+
+          const msgfirstConfirm = {
+            to: recipientEmail,
+            from: "serviceappexchange@gmail.com",
+            subject: `${userFirstConfirmName} ยืนยันการแลกเปลี่ยน`,
+            text: `${userFirstConfirmName} ยืนยันการแลกเปลี่ยนสำเร็จกับคุณแล้ว`,
+          };
+
+          try {
+            await sgMail.send(msgfirstConfirm);
+            console.log(`New message email sent successfully: type is ${typeData}`);
+          } catch (error) {
+            console.error("Error sending new message email:", error);
+          }
+          break;
+        }
+        default:
+          console.log(`New message email don't have type in switch case but is ${typeData}`);
+          break;
+      }
+    });
+
+exports.delayedUpdate = functions.firestore
+    .document("Chats/{chatId}")
+    .onUpdate(async (change, context) => {
+      const newValue = change.after.data();
+      const previousValue = change.before.data();
+
+      if ((previousValue.isExchanged === undefined && newValue.isExchanged) ||
+            (previousValue.exchangeCompleted === undefined && newValue.exchangeCompleted)) {
+        console.log(`strat setTimeout at ${context.params.chatId}`);
+
+        setTimeout(async () => {
+          console.log(`setTimeout start in document ${context.params.chatId}`);
+
+          const chatRaf = await admin.firestore().collection("Chats").doc(context.params.chatId).get();
+          const chatData = chatRaf.data();
+          const exchangeCompleted = chatData.exchangeCompleted;
+
+          console.log(`data of ${exchangeCompleted}`);
+
+          if (exchangeCompleted == false) {
+            const batch = admin.firestore().batch();
+            const isExchanged = newValue.isExchanged;
+            const userIds = newValue.userIds;
+            const postIds = newValue.postIds;
+
+            const currentUserId = Object.keys(isExchanged).find((id) => isExchanged[id] === true);
+            const oppositeUserId = userIds.find((id) => id !== currentUserId);
+
+            try {
+              batch.update(change.after.ref, {
+                "isExchanged": {
+                  ...isExchanged,
+                  [oppositeUserId]: true,
+                },
+                "exchangeCompleted": true,
+              });
+
+              postIds.forEach((postId) => {
+                const postRef = admin.firestore().collection("posts").doc(postId);
+                batch.update(postRef, {
+                  "status": "successfully",
+                });
+              });
+
+              for (const userId of userIds) {
+                const userRef = admin.firestore().collection("informationUser").doc(userId);
+                const doc = await userRef.get();
+                if (doc.exists) {
+                  const currentExchangeSuccess = doc.data().exchangeSuccess || 0;
+                  const newExchangeSuccess = currentExchangeSuccess + 1;
+                  batch.update(userRef, {
+                    exchangeSuccess: newExchangeSuccess,
+                    successfulExchanges: admin.firestore.FieldValue.arrayUnion({chatId: context.params.chatId, postIds}),
+                  });
+                } else {
+                  console.log(`Document for userId ${userId} does not exist.`);
+                }
+              }
+
+              await batch.commit();
+              console.log(`Updated document ${context.params.chatId} After SetTimeout and completed checking pending exchanges.`);
+            } catch (error) {
+              console.log(`Update success exchange have error is : ${error}`);
+            } finally {
+              const notificationRef = admin.firestore().collection("Notifications");
+
+              try {
+                const user1Ref = await admin.firestore().collection("informationUser").doc(userIds[0]).get();
+                const user2Ref = await admin.firestore().collection("informationUser").doc(userIds[1]).get();
+
+                const user1Name = user1Ref.exists ? user1Ref.data().Name : "User 1";
+                const user2Name = user2Ref.exists ? user2Ref.data().Name : "User 2";
+
+                const newNotification1 = {
+                  userId: `${userIds[0]}`,
+                  title: "แลกเปลี่ยนสำเร็จ",
+                  message: `คุณทำการแลกเปลี่ยนสิ่งของกับ ${user2Name} สำเร็จ`,
+                  read: false,
+                  type: "successfulExchange",
+                  createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                  chatId: `${context.params.chatId}`,
+                };
+
+                const newNotification2 = {
+                  userId: `${userIds[1]}`,
+                  title: "แลกเปลี่ยนสำเร็จ",
+                  message: `คุณทำการแลกเปลี่ยนสิ่งของกับ ${user1Name} สำเร็จ`,
+                  read: false,
+                  type: "successfulExchange",
+                  createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                  chatId: `${context.params.chatId}`,
+                };
+
+                await Promise.all([
+                  notificationRef.add(newNotification1),
+                  notificationRef.add(newNotification2),
+                ]);
+
+                console.log("Notifications added successfully.");
+              } catch (notificationError) {
+                console.error("Error adding notifications: ", notificationError);
+              }
+            }
+          } else {
+            console.log(`The exchange was completed successfully or Filed "exchangeCompleted" is True`);
+          }
+        }, 2 * 60 * 1000); // 2 minutes delay
+      } else {
+        console.log(`No change in fields isExchanged or exchangeCompleted in document ${context.params.chatId}!!.`);
+      }
+    });
+
+
